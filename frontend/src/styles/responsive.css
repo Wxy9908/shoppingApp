@@ -1,0 +1,78 @@
+@media (orientation: landscape) and (max-height: 520px) {
+  .app-header {
+    padding-top: 10px;
+    padding-bottom: 8px;
+  }
+
+  .page-content {
+    padding-bottom: calc(72px + var(--prep-safe-bottom));
+  }
+
+  .van-tabbar {
+    height: 56px;
+  }
+
+  .card,
+  .hero-card,
+  .head-card,
+  .empty,
+  .category-section,
+  .backup-panel {
+    padding: var(--prep-space-4);
+  }
+}
+
+@media (max-width: 360px) {
+  .page-content {
+    padding-left: var(--prep-space-3);
+    padding-right: var(--prep-space-3);
+  }
+
+  .title,
+  .hero-title,
+  .card-title {
+    font-size: var(--prep-font-lg);
+  }
+
+  .desc,
+  .hero-sub,
+  .meta-text {
+    font-size: var(--prep-font-xs);
+  }
+}
+
+@media (min-width: 768px) {
+  .app-shell {
+    max-width: 840px;
+  }
+
+  .page-content {
+    padding-left: var(--prep-space-7);
+    padding-right: var(--prep-space-7);
+  }
+
+  .title,
+  .hero-title,
+  .card-title {
+    font-size: 18px;
+  }
+
+  button,
+  [role='button'] {
+    min-height: 40px;
+  }
+
+  .page {
+    gap: var(--prep-space-5);
+  }
+
+  .card,
+  .hero-card,
+  .head-card,
+  .empty,
+  .category-section,
+  .meal-card,
+  .backup-panel {
+    padding: var(--prep-space-7);
+  }
+}

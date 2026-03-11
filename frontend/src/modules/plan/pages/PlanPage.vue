@@ -1,63 +1,80 @@
 <template>
   <section class="page" aria-label="周计划页面">
-    <h1 class="title">周计划创建</h1>
-    <p class="desc">10 分钟完成本周规划，后续可在菜单页继续调整菜品。</p>
-
-    <van-form class="form" @submit="handleSavePlan">
-      <van-field
-        v-model.number="form.peopleCount"
-        type="digit"
-        label="人数"
-        placeholder="请输入就餐人数"
-        :rules="[{ required: true, message: '请填写人数' }]"
-        aria-label="就餐人数"
-      />
-      <van-field
-        v-model.number="form.days"
-        type="digit"
-        label="天数"
-        placeholder="请输入规划天数（1-7）"
-        :rules="[{ required: true, message: '请填写天数' }]"
-        aria-label="规划天数"
-      />
-      <van-field
-        v-model.number="form.budget"
-        type="digit"
-        label="预算"
-        placeholder="请输入本周预算（元）"
-        :rules="[{ required: true, message: '请填写预算' }]"
-        aria-label="每周预算"
-      />
-      <van-field
-        v-model.trim="form.preferences"
-        label="口味偏好"
-        placeholder="如：清淡、少油、快手菜"
-        aria-label="口味偏好"
-      />
-
-      <div class="actions">
-        <van-button native-type="submit" type="primary" block :loading="prepStore.isLoading">保存计划</van-button>
-        <van-button
-          type="default"
-          block
-          aria-label="前往菜单页"
-          :disabled="!prepStore.hasActivePlan"
-          @click="handleGoMenu"
-        >
-          前往菜单管理
-        </van-button>
-        <van-button
-          type="success"
-          block
-          aria-label="复制到下周"
-          :disabled="!prepStore.hasActivePlan"
-          :loading="prepStore.isLoading"
-          @click="handleCopyToNextWeek"
-        >
-          复制到下周（重置执行状态）
-        </van-button>
+    <header class="card">
+      <div class="title">计划创建</div>
+      <p class="desc">10 分钟完成下周菜单基础配置</p>
+      <div class="row" style="margin-top: 12px;">
+        <span class="pill active">👥 {{ form.peopleCount }} 人</span>
+        <span class="pill">📅 {{ form.days }} 天</span>
+        <span class="pill">💰 预算 {{ form.budget }}</span>
       </div>
-    </van-form>
+      <div v-if="form.preferences" class="row" style="margin-top: 12px;">
+        <span v-for="pref in form.preferences.split(/[，, ]+/)" :key="pref" class="pill active">{{ pref }}</span>
+      </div>
+      <div class="row" style="margin-top: 20px;">
+        <button class="btn btn--primary" style="flex: 1.5;" @click="handleSavePlan">生成菜单</button>
+        <button class="btn" style="flex: 1;" @click="handleGoMenu">查看菜单</button>
+      </div>
+    </header>
+
+    <article class="card">
+      <div class="title" style="margin-bottom: 16px;">基础配置</div>
+      <van-form class="form" @submit="handleSavePlan">
+        <van-field
+          v-model.number="form.peopleCount"
+          type="digit"
+          label="人数"
+          placeholder="请输入就餐人数"
+          :rules="[{ required: true, message: '请填写人数' }]"
+          aria-label="就餐人数"
+        />
+        <van-field
+          v-model.number="form.days"
+          type="digit"
+          label="天数"
+          placeholder="请输入规划天数（1-7）"
+          :rules="[{ required: true, message: '请填写天数' }]"
+          aria-label="规划天数"
+        />
+        <van-field
+          v-model.number="form.budget"
+          type="digit"
+          label="预算"
+          placeholder="请输入本周预算（元）"
+          :rules="[{ required: true, message: '请填写预算' }]"
+          aria-label="每周预算"
+        />
+        <van-field
+          v-model.trim="form.preferences"
+          label="口味偏好"
+          placeholder="如：清淡、少油、快手菜"
+          aria-label="口味偏好"
+        />
+
+        <div class="actions">
+          <van-button native-type="submit" type="primary" block :loading="prepStore.isLoading">保存计划</van-button>
+          <van-button
+            type="default"
+            block
+            aria-label="前往菜单页"
+            :disabled="!prepStore.hasActivePlan"
+            @click="handleGoMenu"
+          >
+            前往菜单管理
+          </van-button>
+          <van-button
+            type="success"
+            block
+            aria-label="复制到下周"
+            :disabled="!prepStore.hasActivePlan"
+            :loading="prepStore.isLoading"
+            @click="handleCopyToNextWeek"
+          >
+            复制到下周（重置执行状态）
+          </van-button>
+        </div>
+      </van-form>
+    </article>
 
     <van-notice-bar
       v-if="prepStore.currentPlan"
@@ -193,57 +210,43 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.page {
-  border-radius: 12px;
-  background: #ffffff;
-  padding: 16px;
-  box-shadow: 0 4px 16px rgb(0 0 0 / 4%);
-}
-
-.title {
-  margin: 0;
-  font-size: 18px;
-  font-weight: 600;
-}
-
-.desc {
-  margin: 8px 0 12px;
-  color: #646566;
-  line-height: 1.6;
+.row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
 }
 
 .form {
   display: grid;
-  gap: 12px;
 }
 
 .actions {
   display: grid;
-  gap: 10px;
-  margin-top: 8px;
+  gap: 12px;
+  margin-top: 20px;
 }
 
 .backup-panel {
-  margin-top: 12px;
-  border: 1px solid #ececec;
-  border-radius: 10px;
-  padding: 10px;
+  background: var(--prep-surface);
+  border-radius: var(--prep-radius-xl);
+  padding: 20px;
+  margin-bottom: 16px;
+  box-shadow: var(--prep-shadow-card);
+  border: 1px solid rgba(0, 0, 0, 0.02);
 }
 
 .backup-title {
-  margin: 0 0 8px;
-  font-size: 14px;
-}
-
-.backup-actions {
-  display: grid;
-  gap: 8px;
+  margin: 0 0 16px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #1e293b;
 }
 
 .backup-desc {
-  margin: 8px 0 0;
-  color: #646566;
-  font-size: 12px;
+  margin: 12px 0 0;
+  font-size: 13px;
+  color: var(--prep-text-muted);
 }
 
 .hidden-input {

@@ -1,0 +1,61 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Helvetica, Arial, sans-serif;
+  background: linear-gradient(180deg, var(--prep-bg) 0%, var(--prep-bg-soft) 100%);
+  color: var(--prep-text-secondary);
+  line-height: 1.45;
+}
+
+a,
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button,
+[role='button'] {
+  min-height: 36px;
+  cursor: pointer;
+}
+
+h1,
+h2,
+h3,
+h4,
+p {
+  margin: 0;
+}
+
+.prep-scroll-x {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.prep-scroll-x::-webkit-scrollbar {
+  display: none;
+}
+
+:root {
+  --van-primary-color: var(--prep-primary);
+  --van-success-color: var(--prep-success);
+  --van-warning-color: var(--prep-warning);
+  --van-danger-color: var(--prep-danger);
+  --van-radius-md: var(--prep-radius-md);
+}

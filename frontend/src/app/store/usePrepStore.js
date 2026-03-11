@@ -1,7 +1,12 @@
 import { defineStore } from 'pinia'
 import { db } from '../../infra/db/dexie'
+import { PRODUCT_NAME } from '../constants/brand'
 
 const DEFAULT_MEAL_TYPES = ['午餐', '晚餐']
+export const MEAL_ITEM_STATUS = {
+  PENDING: 'pending',
+  COMPLETED: 'completed',
+}
 export const SHOPPING_ITEM_STATUS = {
   PENDING: 'pending',
   PURCHASED: 'purchased',
@@ -58,6 +63,11 @@ const dishTemplates = [
     id: 'dish-001',
     name: '番茄炒蛋',
     prepMinutes: 15,
+    steps: [
+      { title: '备料', content: '番茄切块，鸡蛋打散加少许盐。' },
+      { title: '炒蛋', content: '热锅下油，鸡蛋炒至凝固后盛出。' },
+      { title: '合炒', content: '番茄炒出汁后回锅鸡蛋，翻炒均匀即可。' },
+    ],
     ingredients: [
       { name: '西红柿', quantity: 2, unit: '个', category: '蔬菜' },
       { name: '鸡蛋', quantity: 3, unit: '个', category: '蛋奶' },
@@ -67,6 +77,11 @@ const dishTemplates = [
     id: 'dish-002',
     name: '青椒土豆丝',
     prepMinutes: 20,
+    steps: [
+      { title: '备料', content: '土豆去皮切丝后泡水，青椒切丝。' },
+      { title: '爆香', content: '热油下蒜末，炒香后下土豆丝。' },
+      { title: '收尾', content: '加入青椒丝和调味料，大火快炒至断生。' },
+    ],
     ingredients: [
       { name: '土豆', quantity: 2, unit: '个', category: '蔬菜' },
       { name: '青椒', quantity: 2, unit: '个', category: '蔬菜' },
@@ -76,6 +91,11 @@ const dishTemplates = [
     id: 'dish-003',
     name: '蒜蓉西兰花',
     prepMinutes: 15,
+    steps: [
+      { title: '处理食材', content: '西兰花掰小朵后焯水 1 分钟，蒜切末。' },
+      { title: '炒香蒜蓉', content: '热锅冷油，小火炒香蒜末。' },
+      { title: '翻炒出锅', content: '下西兰花快速翻炒，调味后即可出锅。' },
+    ],
     ingredients: [
       { name: '西兰花', quantity: 1, unit: '个', category: '蔬菜' },
       { name: '蒜', quantity: 4, unit: '瓣', category: '调料' },
@@ -85,6 +105,11 @@ const dishTemplates = [
     id: 'dish-004',
     name: '可乐鸡翅',
     prepMinutes: 30,
+    steps: [
+      { title: '预处理', content: '鸡翅两面划刀，冷水下锅焯去血沫。' },
+      { title: '煎香上色', content: '鸡翅煎至两面金黄，加入生抽翻匀。' },
+      { title: '焖煮收汁', content: '倒入可乐没过鸡翅，中火焖至收汁。' },
+    ],
     ingredients: [
       { name: '鸡翅中', quantity: 500, unit: 'g', category: '肉禽' },
       { name: '生抽', quantity: 20, unit: 'g', category: '调料' },
@@ -94,6 +119,11 @@ const dishTemplates = [
     id: 'dish-005',
     name: '宫保鸡丁',
     prepMinutes: 30,
+    steps: [
+      { title: '备料', content: '鸡胸切丁腌制，黄瓜切丁，调好宫保汁。' },
+      { title: '滑炒鸡丁', content: '热锅下油，先将鸡丁炒至变色。' },
+      { title: '合炒调味', content: '加入配菜和宫保汁，大火翻炒收汁。' },
+    ],
     ingredients: [
       { name: '鸡胸', quantity: 400, unit: 'g', category: '肉禽' },
       { name: '黄瓜', quantity: 1, unit: '个', category: '蔬菜' },
@@ -103,12 +133,39 @@ const dishTemplates = [
     id: 'dish-006',
     name: '香菇炒青菜',
     prepMinutes: 20,
+    steps: [
+      { title: '处理食材', content: '香菇切片，青菜洗净切段。' },
+      { title: '先炒香菇', content: '热锅下油，将香菇炒软出香味。' },
+      { title: '下青菜快炒', content: '加入青菜大火翻炒，调味后立即出锅。' },
+    ],
     ingredients: [
       { name: '香菇', quantity: 250, unit: 'g', category: '蔬菜' },
       { name: '青菜', quantity: 400, unit: 'g', category: '蔬菜' },
     ],
   },
 ]
+
+const getTemplateByDishId = (dishId) => {
+  return dishTemplates.find((dish) => dish.id === dishId) || null
+}
+
+const resolveMealItemSteps = (mealItem) => {
+  if (Array.isArray(mealItem.steps) && mealItem.steps.length) {
+    return mealItem.steps
+  }
+
+  const template = getTemplateByDishId(mealItem.dishId)
+  return template?.steps ?? []
+}
+
+const hydrateMealItem = (mealItem) => {
+  const template = getTemplateByDishId(mealItem.dishId)
+  return {
+    ...mealItem,
+    prepMinutes: mealItem.prepMinutes || template?.prepMinutes || 0,
+    steps: resolveMealItemSteps(mealItem),
+  }
+}
 
 export const normalizeName = (name) => {
   if (!name) {
@@ -249,6 +306,7 @@ export const usePrepStore = defineStore('prep', {
     shoppingItems: [],
     inventoryItems: [],
     inventoryLogs: [],
+    weeklyReview: null,
     lastRestoreAt: '',
     isLoading: false,
     lastError: '',
@@ -286,10 +344,12 @@ export const usePrepStore = defineStore('prep', {
           this.currentPlan = null
           this.mealItems = []
           this.shoppingItems = []
+          this.weeklyReview = null
         } else {
           this.activePlanId = plan.id
           this.currentPlan = plan
           await this.loadPlanData(plan.id)
+          await this.loadWeeklyReview(plan.id, plan.weekStartDate)
         }
 
         await this.loadInventoryData()
@@ -353,7 +413,7 @@ export const usePrepStore = defineStore('prep', {
           db.shoppingItems.where('planId').equals(planId).sortBy('category'),
         ])
 
-        this.mealItems = mealItems
+        this.mealItems = mealItems.map((mealItem) => hydrateMealItem(mealItem))
         this.shoppingItems = shoppingItems
       } catch (error) {
         this.lastError = '加载计划详情失败，请稍后再试。'
@@ -375,6 +435,82 @@ export const usePrepStore = defineStore('prep', {
         this.inventoryLogs = inventoryLogs
       } catch (error) {
         this.lastError = '加载库存数据失败，请稍后再试。'
+        console.error(error)
+      } finally {
+        this.isLoading = false
+      }
+    },
+    async loadWeeklyReview(planId, weekStartDate) {
+      if (!planId || !weekStartDate) {
+        this.weeklyReview = null
+        return
+      }
+
+      this.isLoading = true
+      this.lastError = ''
+
+      try {
+        const existingReview = await db.weeklyReviews
+          .where('planId')
+          .equals(planId)
+          .filter((review) => review.weekStartDate === weekStartDate)
+          .first()
+        this.weeklyReview = existingReview ?? null
+      } catch (error) {
+        this.lastError = '加载周复盘失败，请稍后再试。'
+        console.error(error)
+      } finally {
+        this.isLoading = false
+      }
+    },
+    async saveWeeklyReview(payload) {
+      if (!this.currentPlan?.id) {
+        return
+      }
+
+      this.isLoading = true
+      this.lastError = ''
+
+      try {
+        const now = new Date().toISOString()
+        const existingReview = await db.weeklyReviews
+          .where('planId')
+          .equals(this.currentPlan.id)
+          .filter((review) => review.weekStartDate === this.currentPlan.weekStartDate)
+          .first()
+
+        const reviewData = {
+          planId: this.currentPlan.id,
+          weekStartDate: this.currentPlan.weekStartDate,
+          planningMinutes: Number(payload.planningMinutes || 0),
+          shoppingMinutes: Number(payload.shoppingMinutes || 0),
+          missedItemsCount: Number(payload.missedItemsCount || 0),
+          wastedItemsCount: Number(payload.wastedItemsCount || 0),
+          completionRate: Number(payload.completionRate || 0),
+          actualCost: Number(payload.actualCost || 0),
+          budget: Number(payload.budget || this.currentPlan.budget || 0),
+          updatedAt: now,
+        }
+
+        if (existingReview) {
+          const updatedReview = {
+            ...existingReview,
+            ...reviewData,
+          }
+          await db.weeklyReviews.put(updatedReview)
+          this.weeklyReview = updatedReview
+          return
+        }
+
+        const createdReview = {
+          id: buildId('review'),
+          createdAt: now,
+          ...reviewData,
+        }
+        await db.weeklyReviews.add(createdReview)
+        this.weeklyReview = createdReview
+      } catch (error) {
+        this.lastError = '保存周复盘失败，请稍后重试。'
         console.error(error)
       } finally {
         this.isLoading = false
@@ -404,7 +540,10 @@ export const usePrepStore = defineStore('prep', {
               mealType: DEFAULT_MEAL_TYPES[mealTypeIndex],
               dishId: template.id,
               dishName: template.name,
+              prepMinutes: template.prepMinutes,
+              steps: template.steps,
               ingredients: template.ingredients,
+              status: MEAL_ITEM_STATUS.PENDING,
               createdAt: now,
               updatedAt: now,
             })
@@ -447,6 +586,8 @@ export const usePrepStore = defineStore('prep', {
           ...targetMealItem,
           dishId: targetTemplate.id,
           dishName: targetTemplate.name,
+          prepMinutes: targetTemplate.prepMinutes,
+          steps: targetTemplate.steps,
           ingredients: targetTemplate.ingredients,
           updatedAt: new Date().toISOString(),
         }
@@ -455,6 +596,35 @@ export const usePrepStore = defineStore('prep', {
         this.mealItems = this.mealItems.map((item) => (item.id === mealItemId ? updatedItem : item))
       } catch (error) {
         this.lastError = '替换菜品失败，请重试。'
+        console.error(error)
+      } finally {
+        this.isLoading = false
+      }
+    },
+    async updateMealItemStatus(mealItemId, nextStatus) {
+      if (!mealItemId || !Object.values(MEAL_ITEM_STATUS).includes(nextStatus)) {
+        return
+      }
+
+      this.isLoading = true
+      this.lastError = ''
+
+      try {
+        const targetMealItem = this.mealItems.find((item) => item.id === mealItemId)
+        if (!targetMealItem) {
+          return
+        }
+
+        const updatedMealItem = {
+          ...targetMealItem,
+          status: nextStatus,
+          updatedAt: new Date().toISOString(),
+        }
+
+        await db.mealItems.put(updatedMealItem)
+        this.mealItems = this.mealItems.map((item) => (item.id === mealItemId ? updatedMealItem : item))
+      } catch (error) {
+        this.lastError = '更新菜品状态失败，请稍后重试。'
         console.error(error)
       } finally {
         this.isLoading = false
@@ -850,6 +1020,7 @@ export const usePrepStore = defineStore('prep', {
             planId: nextPlanId,
             dayIndex,
             date: formatDateByOffset(nextWeekStartDate, dayIndex),
+            status: MEAL_ITEM_STATUS.PENDING,
             createdAt: now,
             updatedAt: now,
           }
@@ -906,7 +1077,7 @@ export const usePrepStore = defineStore('prep', {
           meta: {
             version: BACKUP_VERSION,
             exportedAt: new Date().toISOString(),
-            app: 'weekly-prep-hub',
+            app: PRODUCT_NAME,
           },
           tableData,
         }

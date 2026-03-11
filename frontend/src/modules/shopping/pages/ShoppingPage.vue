@@ -1,107 +1,107 @@
 <template>
   <section class="page" aria-label="购物清单页面">
-    <h1 class="title">购物清单</h1>
-    <p class="desc">支持菜单自动聚合（别名归一、单位换算）和手动补充食材。</p>
+    <header class="card">
+      <div class="between">
+        <div class="title" style="font-size: 18px;">购物清单</div>
+        <button class="btn btn--primary btn--sm" @click="handleOpenAddDialog">+ 新增食材</button>
+      </div>
+      <div class="summary-line">
+        待购买 {{ pendingCount }} 项 · 已购买 {{ purchasedCount }} 项 · 冰箱已有 {{ inStockCount }} 项
+      </div>
+      <div class="scroll-x" style="margin-top: 16px;" role="tablist" aria-label="购物清单筛选">
+        <span
+          v-for="filter in filters"
+          :key="filter.value"
+          class="pill"
+          :class="{ active: activeFilter === filter.value }"
+          @click="handleSwitchFilter(filter.value)"
+        >
+          {{ filter.label }}
+        </span>
+      </div>
+    </header>
 
     <div v-if="!prepStore.hasActivePlan" class="empty">
       <p class="empty-text">当前周无有效计划，请先创建计划并生成菜单。</p>
-      <van-button type="primary" block aria-label="去计划页" @click="handleGoPlan">去计划页</van-button>
+      <button class="btn btn--primary" style="width: 100%;" @click="handleGoPlan">去计划页</button>
     </div>
 
     <div v-else class="content">
-      <van-button type="primary" block :loading="prepStore.isLoading" @click="handleGenerateShopping">
+      <button class="btn btn--primary" style="width: 100%;" :loading="prepStore.isLoading" @click="handleGenerateShopping">
         根据菜单生成购物清单
-      </van-button>
+      </button>
 
-      <van-form class="manual-form" @submit="handleManualAdd">
-        <van-field
-          v-model.trim="manualForm.name"
-          label="食材名"
-          placeholder="如：西红柿"
-          :rules="[{ required: true, message: '请输入食材名' }]"
-          aria-label="手动新增食材名"
-        />
-        <van-field
-          v-model.number="manualForm.quantity"
-          type="digit"
-          label="数量"
-          placeholder="如：2"
-          :rules="[{ required: true, message: '请输入数量' }]"
-          aria-label="手动新增数量"
-        />
-        <van-field
-          v-model.trim="manualForm.unit"
-          label="单位"
-          placeholder="如：个 / g"
-          :rules="[{ required: true, message: '请输入单位' }]"
-          aria-label="手动新增单位"
-        />
-        <van-field
-          v-model.trim="manualForm.category"
-          label="分类"
-          placeholder="如：蔬菜、肉禽"
-          aria-label="手动新增分类"
-        />
-        <van-button native-type="submit" type="success" block>手动新增食材</van-button>
-      </van-form>
-
-      <van-empty v-if="!prepStore.shoppingItems.length" description="还没有清单，先点击上方按钮生成。" />
+      <van-empty v-if="!filteredCategoryList.length" description="当前筛选下无清单项。" />
 
       <section
-        v-for="(items, category) in prepStore.shoppingItemsByCategory"
-        :key="category"
-        class="category-section"
-        :aria-label="`${category}分类`"
+        v-for="categoryGroup in filteredCategoryList"
+        :key="categoryGroup.category"
+        class="card"
+        :aria-label="`${categoryGroup.category}分类`"
       >
-        <h2 class="category-title">{{ category }}</h2>
-        <article v-for="item in items" :key="item.id" class="shopping-item">
-          <div>
-            <p class="item-name">{{ item.name }}</p>
-            <p class="item-quantity">{{ item.quantity }} {{ item.unit }}</p>
-          </div>
+        <div class="between">
+          <div class="title">{{ categoryGroup.category }}</div>
+          <span class="tag">{{ categoryGroup.items.length }} 项</span>
+        </div>
 
-          <div class="item-right">
-            <div class="status-actions">
+        <div class="shopping-list">
+          <div v-for="item in categoryGroup.items" :key="item.id" class="shopping-item">
+            <div class="between">
+              <div class="item-name">{{ item.name }} {{ item.quantity }}{{ item.unit }}</div>
+              <span class="desc">{{ getShoppingStatusLabel(item.status) }}</span>
+            </div>
+
+            <div class="status-group">
               <button
                 type="button"
-                class="status-chip"
-                :class="{ 'status-chip--active': item.status === SHOPPING_ITEM_STATUS.PENDING }"
-                :aria-label="`将${item.name}标记为待购买`"
+                class="status-btn pending"
+                :class="{ 'status-btn--active': item.status === SHOPPING_ITEM_STATUS.PENDING }"
                 @click="handleStatusChange(item.id, SHOPPING_ITEM_STATUS.PENDING)"
               >
                 待购买
               </button>
               <button
                 type="button"
-                class="status-chip"
-                :class="{ 'status-chip--active': item.status === SHOPPING_ITEM_STATUS.PURCHASED }"
-                :aria-label="`将${item.name}标记为已购买`"
+                class="status-btn purchased"
+                :class="{ 'status-btn--active': item.status === SHOPPING_ITEM_STATUS.PURCHASED }"
                 @click="handleStatusChange(item.id, SHOPPING_ITEM_STATUS.PURCHASED)"
               >
                 已购买
               </button>
               <button
                 type="button"
-                class="status-chip"
-                :class="{ 'status-chip--active': item.status === SHOPPING_ITEM_STATUS.IN_STOCK }"
-                :aria-label="`将${item.name}标记为冰箱已有`"
+                class="status-btn inventory"
+                :class="{ 'status-btn--active': item.status === SHOPPING_ITEM_STATUS.IN_STOCK }"
                 @click="handleStatusChange(item.id, SHOPPING_ITEM_STATUS.IN_STOCK)"
               >
                 冰箱已有
               </button>
             </div>
-
-            <van-tag v-if="item.needsManualConfirm" type="warning">需手动确认</van-tag>
-            <van-tag v-else plain type="primary">已聚合</van-tag>
           </div>
-        </article>
+        </div>
       </section>
     </div>
+
+    <van-dialog
+      v-model:show="isAddDialogVisible"
+      title="新增食材"
+      show-cancel-button
+      confirm-button-text="确认添加"
+      cancel-button-text="取消"
+      @confirm="handleManualAdd"
+    >
+      <van-form class="manual-form" @submit.prevent>
+        <van-field v-model.trim="manualForm.name" label="食材名" placeholder="例如：土豆" aria-label="食材名" />
+        <van-field v-model.number="manualForm.quantity" type="digit" label="数量" placeholder="例如：2" aria-label="数量" />
+        <van-field v-model.trim="manualForm.unit" label="单位" placeholder="个 / g / ml" aria-label="单位" />
+        <van-field v-model.trim="manualForm.category" label="分类" placeholder="蔬菜 / 肉禽 / 调料 / 其他" aria-label="分类" />
+      </van-form>
+    </van-dialog>
   </section>
 </template>
 
 <script setup>
-import { reactive, onMounted } from 'vue'
+import { computed, reactive, ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { showFailToast, showSuccessToast } from 'vant'
 import { SHOPPING_ITEM_STATUS, getShoppingStatusLabel, usePrepStore } from '../../../app/store/usePrepStore'
@@ -112,6 +112,8 @@ defineOptions({
 
 const router = useRouter()
 const prepStore = usePrepStore()
+const activeFilter = ref('all')
+const isAddDialogVisible = ref(false)
 
 const manualForm = reactive({
   name: '',
@@ -120,8 +122,53 @@ const manualForm = reactive({
   category: '其他',
 })
 
+const filters = [
+  { label: '全部', value: 'all' },
+  { label: '待购买', value: SHOPPING_ITEM_STATUS.PENDING },
+  { label: '已购买', value: SHOPPING_ITEM_STATUS.PURCHASED },
+  { label: '冰箱已有', value: SHOPPING_ITEM_STATUS.IN_STOCK },
+]
+
+const pendingCount = computed(
+  () => prepStore.shoppingItems.filter((item) => item.status === SHOPPING_ITEM_STATUS.PENDING).length
+)
+const purchasedCount = computed(
+  () => prepStore.shoppingItems.filter((item) => item.status === SHOPPING_ITEM_STATUS.PURCHASED).length
+)
+const inStockCount = computed(
+  () => prepStore.shoppingItems.filter((item) => item.status === SHOPPING_ITEM_STATUS.IN_STOCK).length
+)
+
+const filteredCategoryList = computed(() => {
+  const groupedMap = prepStore.shoppingItems.reduce((accumulator, item) => {
+    if (activeFilter.value !== 'all' && item.status !== activeFilter.value) {
+      return accumulator
+    }
+
+    const category = item.category || '其他'
+    if (!accumulator.has(category)) {
+      accumulator.set(category, [])
+    }
+    accumulator.get(category).push(item)
+    return accumulator
+  }, new Map())
+
+  return Array.from(groupedMap.entries()).map(([category, items]) => ({
+    category,
+    items,
+  }))
+})
+
 const handleGoPlan = () => {
   router.push('/plan')
+}
+
+const handleSwitchFilter = (filterValue) => {
+  activeFilter.value = filterValue
+}
+
+const handleOpenAddDialog = () => {
+  isAddDialogVisible.value = true
 }
 
 const handleGenerateShopping = async () => {
@@ -150,6 +197,21 @@ const handleStatusChange = async (itemId, nextStatus) => {
 }
 
 const handleManualAdd = async () => {
+  if (!manualForm.name.trim()) {
+    showFailToast('请输入食材名')
+    return
+  }
+
+  if (!Number.isFinite(Number(manualForm.quantity)) || Number(manualForm.quantity) <= 0) {
+    showFailToast('请输入大于 0 的数量')
+    return
+  }
+
+  if (!manualForm.unit.trim()) {
+    showFailToast('请输入单位')
+    return
+  }
+
   await prepStore.addManualShoppingItem({
     name: manualForm.name,
     quantity: manualForm.quantity,
@@ -166,6 +228,7 @@ const handleManualAdd = async () => {
   manualForm.quantity = 1
   manualForm.unit = '个'
   manualForm.category = '其他'
+  isAddDialogVisible.value = false
   showSuccessToast('已新增到购物清单')
 }
 
@@ -175,99 +238,39 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.page {
-  border-radius: 12px;
-  background: #ffffff;
+.scroll-x {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 4px 0;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.scroll-x::-webkit-scrollbar {
+  display: none;
+}
+
+.tag {
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: 8px;
+  padding: 4px 10px;
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.shopping-list {
+  display: grid;
+}
+
+.manual-form {
   padding: 16px;
-  box-shadow: 0 4px 16px rgb(0 0 0 / 4%);
-}
-
-.title {
-  margin: 0;
-  font-size: 18px;
-  font-weight: 600;
-}
-
-.desc {
-  margin: 8px 0 12px;
-  color: #646566;
-  line-height: 1.6;
-}
-
-.empty-text {
-  margin: 0 0 10px;
-  color: #646566;
-}
-
-.content {
   display: grid;
   gap: 12px;
 }
 
-.manual-form {
-  display: grid;
-  gap: 8px;
-}
-
-.category-section {
-  border: 1px solid #ececec;
-  border-radius: 10px;
-  padding: 10px;
-}
-
-.category-title {
-  margin: 0 0 8px;
-  font-size: 14px;
-  color: #323233;
-}
-
-.shopping-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  border-top: 1px dashed #efefef;
-  padding: 8px 0;
-  gap: 10px;
-}
-
-.item-name {
-  margin: 0;
-  font-size: 14px;
-}
-
-.item-quantity {
-  margin: 4px 0 0;
-  color: #646566;
-  font-size: 13px;
-}
-
-.item-right {
-  display: grid;
-  justify-items: end;
-  gap: 6px;
-}
-
-.status-actions {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-}
-
-.status-chip {
-  border: 1px solid #d9d9d9;
-  border-radius: 14px;
-  background: #fff;
-  color: #646566;
-  font-size: 12px;
-  padding: 2px 8px;
-  line-height: 1.6;
+button {
   cursor: pointer;
-}
-
-.status-chip--active {
-  border-color: #1989fa;
-  color: #1989fa;
-  background: #f0f7ff;
 }
 </style>

@@ -1,34 +1,62 @@
 <template>
   <section class="page" aria-label="菜单页面">
-    <h1 class="title">菜单管理</h1>
-    <p class="desc">支持生成周菜单、手动替换菜品，并保留持久化结果。</p>
+    <header class="card">
+      <div class="between">
+        <div class="title">菜单页</div>
+        <span class="tag orange">周视图</span>
+      </div>
+      <div v-if="dateTabs.length" class="scroll-x" style="margin-top: 12px;">
+        <span
+          v-for="dateTab in dateTabs"
+          :key="dateTab.value"
+          class="pill"
+          :class="{ active: activeDate === dateTab.value }"
+          @click="handleSwitchDate(dateTab.value)"
+        >
+          {{ dateTab.label }}
+        </span>
+      </div>
+      <div class="row" style="margin-top: 16px;">
+        <button class="btn btn--primary" style="flex: 1;" :loading="prepStore.isLoading" @click="handleGenerateMenu">
+          生成本周菜单
+        </button>
+      </div>
+    </header>
 
     <div v-if="!prepStore.hasActivePlan" class="empty">
       <p class="empty-text">请先在计划页创建本周计划。</p>
-      <van-button type="primary" block aria-label="去创建周计划" @click="handleGoPlan">去创建周计划</van-button>
+      <button class="btn btn--primary" style="width: 100%;" @click="handleGoPlan">去创建周计划</button>
     </div>
 
     <div v-else class="content">
-      <div class="toolbar">
-        <van-button type="primary" size="small" :loading="prepStore.isLoading" @click="handleGenerateMenu">
-          生成本周菜单
-        </van-button>
-      </div>
-
       <van-empty v-if="!prepStore.mealItems.length" description="还没有菜单，先点击上方按钮生成。" />
 
-      <article v-for="item in prepStore.mealItems" :key="item.id" class="meal-card">
-        <header class="meal-header">
-          <strong>{{ item.date }} · {{ item.mealType }}</strong>
-        </header>
-
-        <div class="meal-body">
-          <p class="dish-name">{{ item.dishName }}</p>
-          <p class="ingredients">{{ formatIngredients(item.ingredients) }}</p>
+      <article v-for="item in visibleMealItems" :key="item.id" class="meal-card">
+        <div class="between">
+          <div>
+            <div class="meal-name">{{ item.mealType }} · {{ item.dishName }}</div>
+            <div class="meta">
+              <span>⏱ {{ item.prepMinutes || 20 }}m</span>
+              <span>📊 {{ item.difficulty || '中等' }}</span>
+              <span>🍎 食材 {{ item.ingredients?.length || 0 }}</span>
+            </div>
+          </div>
+          <span class="tag green">{{ item.mealType }}</span>
         </div>
 
-        <footer class="meal-footer">
-          <label class="select-label" :for="`dish-${item.id}`">替换菜品</label>
+        <div class="row" style="margin-top: 16px;">
+          <button class="btn btn--sm" @click="handleToggleReplace(item.id)">替换</button>
+          <button class="btn btn--sm" @click="handleDeleteMeal(item.id)">删除</button>
+          <button
+            class="btn btn--sm btn--primary"
+            style="flex: 1.5;"
+            @click="handleToggleMealStatus(item)"
+          >
+            {{ getMealStatus(item) === MEAL_ITEM_STATUS.COMPLETED ? '取消完成' : '标记完成' }}
+          </button>
+        </div>
+
+        <div v-if="replacingMealId === item.id" class="field" style="margin-top: 12px;">
           <select
             :id="`dish-${item.id}`"
             class="dish-select"
@@ -40,22 +68,30 @@
               {{ dish.name }}（{{ dish.prepMinutes }} 分钟）
             </option>
           </select>
-          <van-button plain type="danger" size="small" @click="handleDeleteMeal(item.id)">删除</van-button>
-        </footer>
+        </div>
+
+        <details v-if="item.steps && item.steps.length" style="margin-top: 16px; background: #f8fafc; border-radius: 16px; padding: 4px 16px; border: 1px solid #f1f5f9;">
+          <summary style="font-size: 13px; color: #3b82f6; cursor: pointer; padding: 10px 0; font-weight: 500;">查看做饭流程</summary>
+          <ol style="margin: 0 0 14px 20px; padding: 0; color: #475569; font-size: 14px; line-height: 1.6; font-weight: 400;">
+            <li v-for="(step, index) in item.steps" :key="index">
+              <strong>{{ step.title }}：</strong>{{ step.content }}
+            </li>
+          </ol>
+        </details>
       </article>
 
-      <van-button type="success" block aria-label="前往购物清单" @click="handleGoShopping">
+      <button class="btn btn--primary" style="width: 100%;" @click="handleGoShopping">
         去生成购物清单
-      </van-button>
+      </button>
     </div>
   </section>
 </template>
 
 <script setup>
-import { onMounted } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { showFailToast, showSuccessToast } from 'vant'
-import { usePrepStore } from '../../../app/store/usePrepStore'
+import { MEAL_ITEM_STATUS, usePrepStore } from '../../../app/store/usePrepStore'
 
 defineOptions({
   name: 'MenuPage',
@@ -63,6 +99,30 @@ defineOptions({
 
 const prepStore = usePrepStore()
 const router = useRouter()
+const activeDate = ref('')
+const replacingMealId = ref(null)
+
+const handleToggleReplace = (mealId) => {
+  replacingMealId.value = replacingMealId.value === mealId ? null : mealId
+}
+
+const dateTabs = computed(() => {
+  const dateSet = new Set(prepStore.mealItems.map((item) => item.date))
+  return Array.from(dateSet)
+    .sort((left, right) => left.localeCompare(right, 'zh-CN'))
+    .map((value) => ({
+      value,
+      label: value,
+    }))
+})
+
+const visibleMealItems = computed(() => {
+  if (!activeDate.value) {
+    return prepStore.mealItems
+  }
+
+  return prepStore.mealItems.filter((item) => item.date === activeDate.value)
+})
 
 const formatIngredients = (ingredients = []) => {
   if (!ingredients.length) {
@@ -80,6 +140,10 @@ const handleGoShopping = () => {
   router.push('/shopping')
 }
 
+const handleSwitchDate = (dateValue) => {
+  activeDate.value = dateValue
+}
+
 const handleGenerateMenu = async () => {
   await prepStore.generateMenu()
   if (prepStore.lastError) {
@@ -88,6 +152,9 @@ const handleGenerateMenu = async () => {
   }
 
   showSuccessToast('菜单生成成功')
+  if (dateTabs.value.length) {
+    activeDate.value = dateTabs.value[0].value
+  }
 }
 
 const handleDishChange = async (event, mealItemId) => {
@@ -99,6 +166,21 @@ const handleDishChange = async (event, mealItemId) => {
   }
 
   showSuccessToast('菜品替换成功')
+}
+
+const getMealStatus = (mealItem) => {
+  return mealItem.status || MEAL_ITEM_STATUS.PENDING
+}
+
+const handleToggleMealStatus = async (mealItem) => {
+  const nextStatus = getMealStatus(mealItem) === MEAL_ITEM_STATUS.COMPLETED ? MEAL_ITEM_STATUS.PENDING : MEAL_ITEM_STATUS.COMPLETED
+  await prepStore.updateMealItemStatus(mealItem.id, nextStatus)
+  if (prepStore.lastError) {
+    showFailToast(prepStore.lastError)
+    return
+  }
+
+  showSuccessToast(nextStatus === MEAL_ITEM_STATUS.COMPLETED ? '已标记完成' : '已恢复为待做')
 }
 
 const handleDeleteMeal = async (mealItemId) => {
@@ -113,85 +195,66 @@ const handleDeleteMeal = async (mealItemId) => {
 
 onMounted(async () => {
   await prepStore.bootstrap()
+  if (dateTabs.value.length) {
+    activeDate.value = dateTabs.value[0].value
+  }
 })
 </script>
 
 <style scoped>
-.page {
-  border-radius: 12px;
-  background: #ffffff;
-  padding: 16px;
-  box-shadow: 0 4px 16px rgb(0 0 0 / 4%);
+.row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
 }
 
-.title {
-  margin: 0;
-  font-size: 18px;
-  font-weight: 600;
+.scroll-x {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 4px 0;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
 
-.desc {
-  margin: 8px 0 12px;
-  color: #646566;
-  line-height: 1.6;
+.scroll-x::-webkit-scrollbar {
+  display: none;
 }
 
-.empty-text {
-  margin: 0 0 10px;
-  color: #646566;
+.tag {
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: 8px;
+  padding: 4px 10px;
+  background: #f1f5f9;
+  color: #475569;
 }
 
-.toolbar {
-  margin-bottom: 12px;
+.tag.orange {
+  background: #fff7ed;
+  color: #d97706;
+}
+
+.tag.green {
+  background: #ecfdf5;
+  color: #059669;
+}
+
+.dish-select {
+  width: 100%;
+  height: 44px;
+  border: 1px solid #f1f5f9;
+  border-radius: 14px;
+  padding: 0 16px;
+  font-size: 15px;
+  background: #f8fafc;
+  appearance: none;
+  color: #1e293b;
+  transition: all 0.2s;
 }
 
 .content {
   display: grid;
-  gap: 12px;
-}
-
-.meal-card {
-  border: 1px solid #e7e8ea;
-  border-radius: 10px;
-  padding: 12px;
-  background: #fff;
-}
-
-.meal-header {
-  margin-bottom: 6px;
-  color: #323233;
-}
-
-.meal-body {
-  margin-bottom: 10px;
-}
-
-.dish-name {
-  margin: 0;
-  font-size: 16px;
-  font-weight: 600;
-}
-
-.ingredients {
-  margin: 6px 0 0;
-  color: #646566;
-  font-size: 13px;
-}
-
-.meal-footer {
-  display: grid;
-  gap: 6px;
-}
-
-.select-label {
-  font-size: 13px;
-  color: #646566;
-}
-
-.dish-select {
-  border: 1px solid #d9d9d9;
-  border-radius: 6px;
-  min-height: 32px;
-  padding: 0 8px;
+  gap: 16px;
 }
 </style>

@@ -1,0 +1,48 @@
+:root {
+  --prep-bg: #f8fafc;
+  --prep-bg-soft: #f1f5f9;
+  --prep-surface: #ffffff;
+  --prep-surface-muted: #f8fafc;
+  --prep-line: #f1f5f9;
+  --prep-line-soft: rgba(0, 0, 0, 0.05);
+
+  --prep-text: #0f172a;
+  --prep-text-secondary: #334155;
+  --prep-text-muted: #64748b;
+
+  --prep-primary: #3b82f6;
+  --prep-primary-soft: #eff6ff;
+  --prep-success: #10b981;
+  --prep-success-soft: #ecfdf5;
+  --prep-warning: #f59e0b;
+  --prep-warning-soft: #fff7ed;
+  --prep-danger: #ef4444;
+
+  --prep-radius-sm: 8px;
+  --prep-radius-md: 12px;
+  --prep-radius-lg: 16px;
+  --prep-radius-xl: 20px;
+  --prep-pill-radius: 10px;
+
+  --prep-shadow-card: 0 4px 20px -4px rgba(0, 0, 0, 0.03);
+  --prep-shadow-primary: 0 4px 12px rgba(59, 130, 246, 0.15);
+
+  --prep-space-1: 4px;
+  --prep-space-2: 8px;
+  --prep-space-3: 10px;
+  --prep-space-4: 12px;
+  --prep-space-5: 16px;
+  --prep-space-6: 20px;
+  --prep-space-7: 24px;
+  --prep-space-8: 32px;
+
+  --prep-font-xs: 12px;
+  --prep-font-sm: 13px;
+  --prep-font-md: 14px;
+  --prep-font-lg: 16px;
+  --prep-font-xl: 17px;
+  --prep-font-2xl: 19px;
+
+  --prep-page-max-width: 480px;
+  --prep-safe-bottom: env(safe-area-inset-bottom, 20px);
+}
