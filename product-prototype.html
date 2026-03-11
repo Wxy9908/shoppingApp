@@ -1,0 +1,577 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>每周备菜助手 - 产品原型</title>
+  <style>
+    :root {
+      --bg: #f3f6fb;
+      --card: #ffffff;
+      --text: #1f2a37;
+      --sub: #667085;
+      --line: #e5e7eb;
+      --green: #23a26d;
+      --blue: #3a7afe;
+      --orange: #ef8f38;
+      --shadow: 0 8px 24px rgba(23, 38, 61, 0.08);
+      --radius: 14px;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: linear-gradient(180deg, #f8fbff 0%, #eef2f8 100%);
+      color: var(--text);
+      display: grid;
+      place-items: center;
+      min-height: 100vh;
+      padding: 24px;
+    }
+
+    .prototype {
+      width: min(1180px, 100%);
+      display: grid;
+      grid-template-columns: 260px 1fr;
+      gap: 18px;
+    }
+
+    .panel {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      box-shadow: var(--shadow);
+    }
+
+    .left {
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .brand {
+      padding: 12px 14px;
+      border-radius: 12px;
+      background: #eff5ff;
+      border: 1px solid #dce8ff;
+      font-weight: 700;
+    }
+
+    .desc {
+      color: var(--sub);
+      font-size: 13px;
+      line-height: 1.5;
+      margin-bottom: 6px;
+    }
+
+    .nav-btn {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 10px 12px;
+      text-align: left;
+      background: #fff;
+      cursor: pointer;
+      transition: all .2s ease;
+      font-size: 14px;
+    }
+    .nav-btn:hover { border-color: #cad4e2; }
+    .nav-btn.active {
+      border-color: #bfd4ff;
+      background: #edf3ff;
+      color: #204aa8;
+      font-weight: 600;
+    }
+
+    .main {
+      padding: 18px;
+      min-height: 760px;
+    }
+
+    .screen {
+      display: none;
+      grid-template-rows: auto 1fr;
+      gap: 14px;
+      height: 100%;
+    }
+    .screen.active { display: grid; }
+
+    .topbar {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 12px 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 4px 12px rgba(0,0,0,.04);
+    }
+
+    .title { font-weight: 700; }
+    .sub { color: var(--sub); font-size: 13px; }
+
+    .badge {
+      display: inline-block;
+      padding: 5px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      border: 1px solid #d7e6ff;
+      background: #eef5ff;
+      color: #2a579f;
+    }
+
+    .content {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 14px;
+      overflow: auto;
+    }
+
+    .grid {
+      display: grid;
+      gap: 12px;
+    }
+
+    .grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+    .card {
+      border: 1px solid var(--line);
+      background: #fff;
+      border-radius: var(--radius);
+      padding: 12px;
+    }
+
+    .card-title {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+      font-weight: 600;
+    }
+
+    .kv { color: var(--sub); font-size: 13px; line-height: 1.5; }
+    .line { border-top: 1px dashed #dde3eb; margin: 10px 0; }
+
+    .btn {
+      border: 1px solid #ccd6e5;
+      background: #fff;
+      border-radius: 10px;
+      padding: 8px 10px;
+      font-size: 13px;
+      cursor: pointer;
+    }
+    .btn.primary {
+      background: var(--blue);
+      border-color: var(--blue);
+      color: #fff;
+    }
+    .btn.ghost {
+      border-color: #cde6d8;
+      color: #11744c;
+      background: #effaf4;
+    }
+
+    .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+
+    .pill {
+      padding: 6px 10px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      font-size: 12px;
+      color: #3a4a60;
+      background: #fafcff;
+      cursor: pointer;
+    }
+    .pill.active {
+      border-color: #bfd4ff;
+      background: #edf3ff;
+      color: #254eaa;
+      font-weight: 600;
+    }
+
+    .meal-card {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 12px;
+      background: #fff;
+      box-shadow: 0 3px 10px rgba(24, 32, 48, 0.04);
+    }
+
+    .meal-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .meal-name { font-weight: 700; margin-bottom: 4px; }
+    .meta { font-size: 12px; color: #51607a; }
+
+    .tag {
+      font-size: 11px;
+      padding: 3px 8px;
+      border-radius: 999px;
+      border: 1px solid #dce3ee;
+      background: #f8fafc;
+      color: #44526a;
+    }
+    .tag.green { border-color: #c7ead8; background: #ecf9f2; color: #1f7c52; }
+    .tag.orange { border-color: #f4dcc3; background: #fff5ea; color: #b8631d; }
+
+    details {
+      border-top: 1px dashed #e3e8ef;
+      margin-top: 10px;
+      padding-top: 8px;
+    }
+    summary { cursor: pointer; color: #2856b3; font-size: 13px; }
+    ol {
+      margin: 8px 0 0 18px;
+      padding: 0;
+      color: #374557;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .todo-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px dashed #e5e9f1;
+      padding: 8px 0;
+      font-size: 14px;
+    }
+    .todo-row:last-child { border-bottom: 0; }
+    .check { color: #2f845c; font-size: 13px; }
+
+    .footer-tip {
+      margin-top: 14px;
+      font-size: 12px;
+      color: #5d6f87;
+      background: #f6f9ff;
+      border: 1px dashed #cfddf6;
+      border-radius: 10px;
+      padding: 9px 10px;
+    }
+
+    @media (max-width: 980px) {
+      .prototype { grid-template-columns: 1fr; }
+      .left { order: 2; }
+      .main { order: 1; }
+      .grid-2, .grid-3 { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="prototype">
+    <aside class="panel left">
+      <div class="brand">每周备菜助手 · 原型</div>
+      <div class="desc">前端重体验、后端轻实现。菜单页为核心页面：按周展示每日菜谱卡片和流程卡片。</div>
+      <button class="nav-btn active" data-target="home">首页</button>
+      <button class="nav-btn" data-target="create">计划创建</button>
+      <button class="nav-btn" data-target="menu">菜单页（重点）</button>
+      <button class="nav-btn" data-target="shopping">购物清单</button>
+      <button class="nav-btn" data-target="review">复盘页</button>
+      <button class="nav-btn" data-target="backup">导入导出</button>
+    </aside>
+
+    <main class="panel main">
+      <section class="screen active" id="home">
+        <div class="topbar">
+          <div>
+            <div class="title">首页</div>
+            <div class="sub">本周计划状态与快速入口</div>
+          </div>
+          <span class="badge">Week 11 · 进行中</span>
+        </div>
+        <div class="content">
+          <div class="grid grid-2">
+            <div class="card">
+              <div class="card-title"><span>本周计划</span><span class="tag green">已创建</span></div>
+              <div class="kv">周期：3/11 - 3/17</div>
+              <div class="kv">人数：2 人 · 天数：7 天 · 预算：420 元</div>
+              <div class="line"></div>
+              <div class="row">
+                <button class="btn primary">进入菜单页</button>
+                <button class="btn">复制上周</button>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-title"><span>本周进度</span><span class="tag">进度 58%</span></div>
+              <div class="kv">已完成菜品：8 / 14</div>
+              <div class="kv">已采购项：17 / 24</div>
+              <div class="kv">库存扣减成功：12 项</div>
+            </div>
+          </div>
+
+          <div class="card" style="margin-top: 12px;">
+            <div class="card-title"><span>快速入口</span></div>
+            <div class="row">
+              <button class="btn primary">新建本周计划</button>
+              <button class="btn">生成购物清单</button>
+              <button class="btn">导出 JSON 备份</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen" id="create">
+        <div class="topbar">
+          <div>
+            <div class="title">计划创建</div>
+            <div class="sub">10 分钟完成下周菜单基础配置</div>
+          </div>
+          <span class="badge">Step 1/3</span>
+        </div>
+        <div class="content">
+          <div class="grid grid-2">
+            <div class="card">
+              <div class="card-title"><span>基本信息</span></div>
+              <div class="kv">人数：2 人</div>
+              <div class="kv">天数：7 天</div>
+              <div class="kv">预算：420 元</div>
+            </div>
+            <div class="card">
+              <div class="card-title"><span>口味偏好</span></div>
+              <div class="row">
+                <span class="pill active">清淡</span>
+                <span class="pill active">快手菜</span>
+                <span class="pill">低脂</span>
+                <span class="pill">川味</span>
+              </div>
+              <div class="footer-tip">首版采用模板库 + 手动替换，不做复杂智能推荐。</div>
+            </div>
+          </div>
+          <div class="row" style="margin-top: 12px;">
+            <button class="btn primary">生成菜单</button>
+            <button class="btn">保存草稿</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen" id="menu">
+        <div class="topbar">
+          <div>
+            <div class="title">菜单页（核心页面）</div>
+            <div class="sub">按周 -> 按天 -> 卡片展示；每张卡片含菜谱与做饭流程</div>
+          </div>
+          <span class="badge">重点页面</span>
+        </div>
+        <div class="content">
+          <div class="row" style="margin-bottom: 10px;">
+            <span class="pill active">周一</span>
+            <span class="pill">周二</span>
+            <span class="pill">周三</span>
+            <span class="pill">周四</span>
+            <span class="pill">周五</span>
+            <span class="pill">周六</span>
+            <span class="pill">周日</span>
+          </div>
+
+          <div class="grid grid-2">
+            <article class="meal-card">
+              <div class="meal-head">
+                <div>
+                  <div class="meal-name">午餐 · 番茄牛腩</div>
+                  <div class="meta">20 分钟 · 难度：中等</div>
+                </div>
+                <div class="row">
+                  <span class="tag green">午餐</span>
+                  <span class="tag orange">关键食材 4</span>
+                </div>
+              </div>
+              <div class="kv">关键食材：牛腩、番茄、洋葱、姜片</div>
+              <div class="row" style="margin-top: 10px;">
+                <button class="btn">替换</button>
+                <button class="btn">删除</button>
+                <button class="btn ghost">标记已完成</button>
+              </div>
+              <details open>
+                <summary>查看做饭流程卡片</summary>
+                <ol>
+                  <li>Step 1 备料：牛腩切块，番茄切丁，洋葱切丝。</li>
+                  <li>Step 2 预处理：牛腩焯水 2 分钟去浮沫。</li>
+                  <li>Step 3 烹饪：先炒香洋葱，再加牛腩和番茄炖 15 分钟。</li>
+                  <li>Step 4 出锅：加少量盐调味，分盒冷藏。</li>
+                </ol>
+              </details>
+            </article>
+
+            <article class="meal-card">
+              <div class="meal-head">
+                <div>
+                  <div class="meal-name">晚餐 · 蒜蓉西兰花鸡胸</div>
+                  <div class="meta">15 分钟 · 难度：简单</div>
+                </div>
+                <div class="row">
+                  <span class="tag green">晚餐</span>
+                  <span class="tag orange">关键食材 3</span>
+                </div>
+              </div>
+              <div class="kv">关键食材：鸡胸肉、西兰花、蒜末</div>
+              <div class="row" style="margin-top: 10px;">
+                <button class="btn">替换</button>
+                <button class="btn">删除</button>
+                <button class="btn ghost">标记已完成</button>
+              </div>
+              <details>
+                <summary>查看做饭流程卡片</summary>
+                <ol>
+                  <li>Step 1 备料：鸡胸切条，西兰花掰小朵。</li>
+                  <li>Step 2 预处理：西兰花焯水 40 秒，鸡胸加少量淀粉抓匀。</li>
+                  <li>Step 3 烹饪：热锅蒜末爆香，先炒鸡胸后下西兰花翻炒。</li>
+                </ol>
+              </details>
+            </article>
+          </div>
+
+          <div class="footer-tip">
+            菜单页视觉原则：卡片化、留白充足、层级清晰、统一圆角与阴影。操作优先级：替换 > 删除 > 标记完成。
+          </div>
+        </div>
+      </section>
+
+      <section class="screen" id="shopping">
+        <div class="topbar">
+          <div>
+            <div class="title">购物清单</div>
+            <div class="sub">支持新增食材 + 三态互斥（待购买/已购买/冰箱已有）</div>
+          </div>
+          <span class="badge">剩余 7 项</span>
+        </div>
+        <div class="content">
+          <div class="card" style="margin-bottom: 12px;">
+            <div class="card-title"><span>操作栏</span><span class="tag">清单管理</span></div>
+            <div class="row">
+              <button class="btn primary">+ 新增食材</button>
+              <button class="btn">全部</button>
+              <button class="btn">待购买</button>
+              <button class="btn">已购买</button>
+              <button class="btn">冰箱已有</button>
+            </div>
+            <div class="footer-tip">
+              新增食材弹层字段：食材名（必填）、数量（必填）、单位、分类、备注；同名同单位默认合并数量。
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-title"><span>蔬菜类</span><span class="tag">3 项</span></div>
+            <div class="todo-row">
+              <span>番茄 500g</span>
+              <div class="row">
+                <span class="pill">待购买</span>
+                <span class="pill">已购买</span>
+                <span class="pill active">冰箱已有</span>
+              </div>
+            </div>
+            <div class="todo-row">
+              <span>西兰花 300g</span>
+              <div class="row">
+                <span class="pill">待购买</span>
+                <span class="pill active">已购买</span>
+                <span class="pill">冰箱已有</span>
+              </div>
+            </div>
+            <div class="todo-row">
+              <span>洋葱 200g</span>
+              <div class="row">
+                <span class="pill active">待购买</span>
+                <span class="pill">已购买</span>
+                <span class="pill">冰箱已有</span>
+              </div>
+            </div>
+          </div>
+          <div class="card" style="margin-top: 12px;">
+            <div class="card-title"><span>肉蛋类</span><span class="tag">2 项</span></div>
+            <div class="todo-row">
+              <span>牛腩 600g</span>
+              <div class="row">
+                <span class="pill active">待购买</span>
+                <span class="pill">已购买</span>
+                <span class="pill">冰箱已有</span>
+              </div>
+            </div>
+            <div class="todo-row">
+              <span>鸡胸肉 400g</span>
+              <div class="row">
+                <span class="pill">待购买</span>
+                <span class="pill active">已购买</span>
+                <span class="pill">冰箱已有</span>
+              </div>
+            </div>
+          </div>
+          <div class="footer-tip">
+            状态规则：同一清单项在任意时刻只能处于一个状态；任一状态都可回退到“待购买”。
+          </div>
+        </div>
+      </section>
+
+      <section class="screen" id="review">
+        <div class="topbar">
+          <div>
+            <div class="title">周复盘（简版）</div>
+            <div class="sub">用于 4 周 Go / No-Go 验证</div>
+          </div>
+          <span class="badge">Week 11</span>
+        </div>
+        <div class="content">
+          <div class="grid grid-3">
+            <div class="card"><div class="kv">计划耗时</div><div class="title">9 分钟</div></div>
+            <div class="card"><div class="kv">采购耗时</div><div class="title">37 分钟</div></div>
+            <div class="card"><div class="kv">完成率</div><div class="title">78%</div></div>
+          </div>
+          <div class="grid grid-2" style="margin-top: 12px;">
+            <div class="card"><div class="kv">漏买次数：1 次</div></div>
+            <div class="card"><div class="kv">浪费食材：2 件</div></div>
+          </div>
+          <div class="footer-tip">判定重点：连续 4 周使用、计划耗时下降、漏买下降、浪费下降。</div>
+        </div>
+      </section>
+
+      <section class="screen" id="backup">
+        <div class="topbar">
+          <div>
+            <div class="title">导入导出（数据安全）</div>
+            <div class="sub">导入前自动快照，导入后显示恢复时间</div>
+          </div>
+          <span class="badge">全量覆盖</span>
+        </div>
+        <div class="content">
+          <div class="card">
+            <div class="card-title"><span>备份管理</span></div>
+            <div class="row">
+              <button class="btn primary">导出 JSON</button>
+              <button class="btn">导入 JSON</button>
+              <button class="btn">查看最近快照</button>
+            </div>
+            <div class="footer-tip">提示：导入会覆盖当前全部数据。执行前需二次确认。</div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const navButtons = document.querySelectorAll(".nav-btn");
+    const screens = document.querySelectorAll(".screen");
+
+    const handleSwitchScreen = (targetId) => {
+      navButtons.forEach((btn) => {
+        const isActive = btn.dataset.target === targetId;
+        btn.classList.toggle("active", isActive);
+      });
+
+      screens.forEach((screen) => {
+        screen.classList.toggle("active", screen.id === targetId);
+      });
+    };
+
+    navButtons.forEach((btn) => {
+      btn.addEventListener("click", () => handleSwitchScreen(btn.dataset.target));
+    });
+  </script>
+</body>
+</html>

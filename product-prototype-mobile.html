@@ -1,0 +1,932 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>每周备菜助手 - 移动端原型</title>
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --card: #ffffff;
+      --text: #334155;
+      --sub: #64748b;
+      --line: #f1f5f9;
+      --blue: #3b82f6;
+      --green: #10b981;
+      --orange: #f59e0b;
+      --radius: 20px;
+      --safe-bottom: env(safe-area-inset-bottom, 20px);
+    }
+
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; outline: none; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", Arial, sans-serif;
+      background: #0f172a;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      color: var(--text);
+      overflow: hidden;
+      line-height: 1.4;
+    }
+
+    .phone {
+      width: 390px;
+      height: 844px;
+      background: var(--bg);
+      border: 10px solid #1e293b;
+      border-radius: 54px;
+      overflow: hidden;
+      position: relative;
+      box-shadow: 0 40px 100px -20px rgba(0, 0, 0, 0.7);
+    }
+
+    .notch {
+      width: 150px;
+      height: 28px;
+      border-radius: 0 0 18px 18px;
+      background: #1e293b;
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+      top: 0;
+      z-index: 100;
+    }
+
+    .app {
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      background: var(--bg);
+    }
+
+    .header {
+      padding: 56px 24px 16px;
+      background: #fff;
+      border-bottom: 1px solid var(--line);
+      flex-shrink: 0;
+    }
+    .header h1 {
+      margin: 0;
+      font-size: 19px;
+      font-weight: 600;
+      letter-spacing: -0.3px;
+      color: #0f172a;
+    }
+    .header p {
+      margin: 4px 0 0;
+      color: var(--sub);
+      font-size: 13px;
+      font-weight: 400;
+    }
+
+    .screen {
+      display: none;
+      overflow-y: auto;
+      overflow-x: hidden;
+      padding: 20px 20px calc(90px + var(--safe-bottom));
+      flex: 1;
+      -webkit-overflow-scrolling: touch;
+      animation: fadeIn 0.3s ease-out;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .screen.active { display: block; }
+
+    .card {
+      background: var(--card);
+      border-radius: var(--radius);
+      padding: 20px;
+      margin-bottom: 16px;
+      box-shadow: 0 4px 20px -4px rgba(0,0,0,0.03);
+      border: 1px solid rgba(0,0,0,0.02);
+    }
+
+    .row {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .between {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .title { font-weight: 600; font-size: 16px; color: #1e293b; }
+    .sub { color: var(--sub); font-size: 13px; font-weight: 400; line-height: 1.5; }
+
+    .btn {
+      min-height: 40px;
+      border: 1px solid #e2e8f0;
+      background: #fff;
+      border-radius: 12px;
+      padding: 0 16px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      color: #475569;
+      flex: 1; /* Default to flex-grow for row buttons */
+    }
+    .btn.sm { min-height: 32px; font-size: 12px; padding: 0 12px; border-radius: 8px; }
+    .btn.lg { min-height: 48px; font-size: 16px; }
+    .btn.primary {
+      background: var(--blue);
+      border-color: var(--blue);
+      color: #fff;
+      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+    }
+    .btn.primary:active { background: #2563eb; box-shadow: none; }
+    .btn.ghost { border-color: transparent; background: transparent; color: var(--blue); }
+
+    /* Progress Bar */
+    .progress-container {
+      margin-top: 12px;
+      height: 8px;
+      background: #f1f5f9;
+      border-radius: 999px;
+      overflow: hidden;
+      position: relative;
+    }
+    .progress-bar {
+      height: 100%;
+      background: linear-gradient(90deg, var(--blue), #60a5fa);
+      border-radius: 999px;
+      transition: width 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    /* Horizontal Scroll for Tabs */
+    .scroll-x {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding: 4px 0;
+      scrollbar-width: none; /* Firefox */
+      -ms-overflow-style: none;  /* IE and Edge */
+    }
+    .scroll-x::-webkit-scrollbar { display: none; } /* Chrome, Safari, Opera */
+    .scroll-x .pill { flex-shrink: 0; }
+
+    .pill {
+      min-height: 32px;
+      display: inline-flex;
+      align-items: center;
+      border: 1px solid #f1f5f9;
+      padding: 0 14px;
+      border-radius: 10px;
+      font-size: 13px;
+      color: var(--sub);
+      background: #f8fafc;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-weight: 400;
+    }
+    .pill.active {
+      border-color: rgba(59, 130, 246, 0.2);
+      background: #eff6ff;
+      color: var(--blue);
+      font-weight: 500;
+    }
+
+    .meal-card {
+      background: #fff;
+      border-radius: 24px;
+      padding: 20px;
+      margin-bottom: 16px;
+      box-shadow: 0 4px 24px -6px rgba(0,0,0,0.04);
+      border: 1px solid rgba(0,0,0,0.01);
+    }
+    .meal-name {
+      font-weight: 600;
+      margin-bottom: 6px;
+      font-size: 17px;
+      color: #0f172a;
+    }
+    .meta {
+      font-size: 13px;
+      color: var(--sub);
+      display: flex;
+      gap: 10px;
+      font-weight: 400;
+    }
+    .tag {
+      font-size: 12px;
+      font-weight: 500;
+      border-radius: 8px;
+      padding: 4px 10px;
+      background: #f1f5f9;
+      color: #475569;
+    }
+    .tag.green {
+      background: #ecfdf5;
+      color: #059669;
+    }
+    .tag.orange {
+      background: #fff7ed;
+      color: #d97706;
+    }
+
+    details { margin-top: 16px; background: #f8fafc; border-radius: 16px; padding: 4px 16px; border: 1px solid #f1f5f9; }
+    summary { font-size: 13px; color: var(--blue); cursor: pointer; padding: 10px 0; font-weight: 500; }
+    ol {
+      margin: 0 0 14px 20px;
+      padding: 0;
+      color: #475569;
+      font-size: 14px;
+      line-height: 1.6;
+      font-weight: 400;
+    }
+
+    .shopping-item {
+      padding: 18px 0;
+      border-bottom: 1px solid #f1f5f9;
+      transition: all 0.3s ease;
+    }
+    .shopping-item.is-purchased { opacity: 0.6; }
+    .shopping-item.is-purchased .item-name { text-decoration: line-through; color: var(--sub); }
+    .shopping-item:last-child { border-bottom: 0; }
+
+    .status-group {
+      display: flex;
+      gap: 10px;
+      margin-top: 14px;
+    }
+    .status-btn {
+      flex: 1;
+      height: 36px;
+      border: 1px solid #f1f5f9;
+      background: #f8fafc;
+      border-radius: 10px;
+      font-size: 12px;
+      font-weight: 400;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--sub);
+      transition: all 0.2s;
+    }
+    .status-btn.active.pending {
+      border-color: #bfdbfe;
+      background: #eff6ff;
+      color: #2563eb;
+      font-weight: 500;
+    }
+    .status-btn.active.purchased {
+      border-color: #a7f3d0;
+      background: #ecfdf5;
+      color: #059669;
+      font-weight: 500;
+    }
+    .status-btn.active.inventory {
+      border-color: #fed7aa;
+      background: #fff7ed;
+      color: #d97706;
+      font-weight: 500;
+    }
+
+    .bottom-nav {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(255, 255, 255, 0.85);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-top: 1px solid rgba(0,0,0,0.05);
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      padding: 10px 10px calc(10px + var(--safe-bottom));
+      z-index: 100;
+    }
+    .tab {
+      border: 0;
+      background: transparent;
+      font-size: 10px;
+      color: #94a3b8;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      min-height: 44px;
+      border-radius: 14px;
+      cursor: pointer;
+      font-weight: 400;
+      transition: all 0.2s;
+    }
+    .tab.active {
+      color: var(--blue);
+      font-weight: 500;
+    }
+    .tab::before {
+      content: '';
+      width: 22px;
+      height: 22px;
+      background: currentColor;
+      mask-size: contain;
+      mask-repeat: no-repeat;
+      mask-position: center;
+      -webkit-mask-size: contain;
+      -webkit-mask-repeat: no-repeat;
+      -webkit-mask-position: center;
+      opacity: 0.8;
+    }
+    /* 模拟图标 */
+    .tab[data-target="s-home"]::before { -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='currentColor'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6'/%3E%3C/svg%3E"); }
+    .tab[data-target="s-plan"]::before { -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='currentColor'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z'/%3E%3C/svg%3E"); }
+    .tab[data-target="s-menu"]::before { -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='currentColor'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253'/%3E%3C/svg%3E"); }
+    .tab[data-target="s-shopping"]::before { -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='currentColor'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z'/%3E%3C/svg%3E"); }
+    .tab[data-target="s-review"]::before { -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='currentColor'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z'/%3E%3C/svg%3E"); }
+
+    .hint {
+      font-size: 13px;
+      color: #4f46e5;
+      background: #f5f3ff;
+      border-radius: 14px;
+      padding: 14px;
+      margin-top: 16px;
+      line-height: 1.5;
+      font-weight: 400;
+      border: 1px solid rgba(79, 70, 229, 0.05);
+    }
+
+    .summary-line {
+      margin-top: 20px;
+      font-size: 13px;
+      font-weight: 500;
+      color: #3b82f6;
+      background: #eff6ff;
+      border-radius: 14px;
+      padding: 12px;
+      text-align: center;
+      letter-spacing: 0.2px;
+    }
+
+    .modal-mask {
+      position: absolute;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.3);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      display: none;
+      align-items: flex-end;
+      justify-content: center;
+      z-index: 200;
+    }
+    .modal-mask.show { display: flex; }
+
+    .modal-sheet {
+      width: 100%;
+      background: #fff;
+      border-radius: 32px 32px 0 0;
+      padding: 24px 24px calc(24px + var(--safe-bottom));
+      box-shadow: 0 -20px 40px rgba(0,0,0,0.05);
+      max-height: 80%;
+      overflow-y: auto;
+    }
+
+    .field {
+      margin-top: 20px;
+      display: grid;
+      gap: 8px;
+    }
+    .field label { font-size: 13px; font-weight: 500; color: #64748b; margin-left: 4px; }
+    .field input, .field select {
+      width: 100%;
+      height: 44px;
+      border: 1px solid #f1f5f9;
+      border-radius: 14px;
+      padding: 0 16px;
+      font-size: 15px;
+      background: #f8fafc;
+      appearance: none;
+      color: #1e293b;
+      transition: all 0.2s;
+    }
+    .field input:focus { border-color: #cbd5e1; background: #fff; }
+    .field input::placeholder { color: #94a3b8; }
+  </style>
+</head>
+<body>
+  <div class="phone">
+    <div class="notch"></div>
+    <div class="app">
+      <header class="header">
+        <h1>每周备菜助手 · 移动端</h1>
+        <p>核心：菜单卡片 + 购物清单三态互斥</p>
+      </header>
+
+      <section class="screen active" id="s-home">
+        <div class="card">
+          <div class="between">
+            <div class="title">本周计划 · Week 11</div>
+            <span class="tag green">进行中</span>
+          </div>
+          <p class="sub">3/11 - 3/17 · 2人 · 预算 420 元</p>
+          <div class="row" style="margin-top: 16px;">
+            <button class="btn primary">新建计划</button>
+            <button class="btn">复制上周</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="between">
+            <div class="title">本周进度</div>
+            <span class="tag" style="color: var(--blue); background: #eff6ff;">58%</span>
+          </div>
+          <div class="progress-container">
+            <div class="progress-bar" style="width: 58%;"></div>
+          </div>
+          <p class="sub" style="margin-top: 12px;">已完成菜品 8/14 · 已购买 17/24</p>
+        </div>
+      </section>
+
+      <section class="screen" id="s-plan">
+        <div class="card">
+          <div class="title">计划创建</div>
+          <p class="sub">10 分钟完成下周菜单基础配置</p>
+          <div class="row" style="margin-top: 12px;">
+            <span class="pill active">👥 2 人</span>
+            <span class="pill">📅 7 天</span>
+            <span class="pill">💰 预算 420</span>
+          </div>
+          <div class="row" style="margin-top: 12px;">
+            <span class="pill active">🥬 清淡</span>
+            <span class="pill active">⚡ 快手菜</span>
+            <span class="pill">🥑 低脂</span>
+          </div>
+          <div class="row" style="margin-top: 20px;">
+            <button class="btn primary" style="flex: 1.5;">生成菜单</button>
+            <button class="btn">保存草稿</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen" id="s-menu">
+        <div class="card">
+          <div class="between">
+            <div class="title">菜单页</div>
+            <span class="tag orange">周视图</span>
+          </div>
+          <div class="scroll-x" style="margin-top: 12px;">
+            <span class="pill active">周一 3/11</span>
+            <span class="pill">周二 3/12</span>
+            <span class="pill">周三 3/13</span>
+            <span class="pill">周四 3/14</span>
+            <span class="pill">周五 3/15</span>
+            <span class="pill">周六 3/16</span>
+            <span class="pill">周日 3/17</span>
+          </div>
+        </div>
+
+        <article class="meal-card">
+          <div class="between">
+            <div>
+              <div class="meal-name">午餐 · 番茄牛腩</div>
+              <div class="meta">
+                <span>⏱ 20m</span>
+                <span>📊 中等</span>
+                <span>🍎 食材 4</span>
+              </div>
+            </div>
+            <span class="tag green">午餐</span>
+          </div>
+          <div class="row" style="margin-top: 16px;">
+            <button class="btn sm">替换</button>
+            <button class="btn sm">删除</button>
+            <button class="btn sm primary" style="flex: 1.5;">标记完成</button>
+          </div>
+          <details open>
+            <summary>查看做饭流程</summary>
+            <ol>
+              <li><strong>备料：</strong>牛腩切块，番茄切丁，洋葱切丝。</li>
+              <li><strong>预处理：</strong>牛腩焯水 2 分钟。</li>
+              <li><strong>烹饪：</strong>先炒洋葱，再加牛腩番茄炖 15 分钟。</li>
+            </ol>
+          </details>
+        </article>
+
+        <article class="meal-card">
+          <div class="between">
+            <div>
+              <div class="meal-name">晚餐 · 蒜蓉西兰花鸡胸</div>
+              <div class="meta">
+                <span>⏱ 15m</span>
+                <span>📊 简单</span>
+                <span>🍎 食材 3</span>
+              </div>
+            </div>
+            <span class="tag green">晚餐</span>
+          </div>
+          <div class="row" style="margin-top: 16px;">
+            <button class="btn sm">替换</button>
+            <button class="btn sm">删除</button>
+            <button class="btn sm primary" style="flex: 1.5;">标记完成</button>
+          </div>
+          <details>
+            <summary>查看做饭流程</summary>
+            <ol>
+              <li><strong>备料：</strong>鸡胸切条，西兰花掰小朵。</li>
+              <li><strong>预处理：</strong>西兰花焯水，鸡胸腌制 3 分钟。</li>
+              <li><strong>烹饪：</strong>蒜末爆香后下鸡胸与西兰花翻炒。</li>
+            </ol>
+          </details>
+        </article>
+      </section>
+
+      <section class="screen" id="s-shopping">
+        <div class="card">
+          <div class="between">
+            <div class="title" style="font-size: 18px;">购物清单</div>
+            <button class="btn primary sm" id="openAddItemModal">+ 新增食材</button>
+          </div>
+          <div class="summary-line">待购买 2 项 · 已购买 1 项 · 冰箱已有 1 项</div>
+          <div class="scroll-x" style="margin-top: 16px;" id="shoppingFilters">
+            <span class="pill active" data-filter="all">全部</span>
+            <span class="pill" data-filter="pending">待购买</span>
+            <span class="pill" data-filter="purchased">已购买</span>
+            <span class="pill" data-filter="from_inventory">冰箱已有</span>
+          </div>
+        </div>
+
+        <div class="card" id="card-vegetable">
+          <div class="between"><div class="title">蔬菜类</div><span class="tag" id="count-vegetable">3 项</span></div>
+          <div class="shopping-list" id="list-vegetable">
+            <div class="shopping-item" data-status="from_inventory" data-category="vegetable">
+              <div class="between">
+                <div class="item-name" data-name="番茄" data-quantity="500" data-unit="g" style="font-size: 15px; color: #1e293b;">番茄 500g</div>
+                <span class="sub item-status-text">冰箱已有</span>
+              </div>
+              <div class="status-group">
+                <button class="status-btn pending" data-status-value="pending">待购买</button>
+                <button class="status-btn purchased" data-status-value="purchased">已购买</button>
+                <button class="status-btn active inventory" data-status-value="from_inventory">冰箱已有</button>
+              </div>
+            </div>
+
+            <div class="shopping-item" data-status="purchased" data-category="vegetable">
+              <div class="between">
+                <div class="item-name" data-name="西兰花" data-quantity="300" data-unit="g" style="font-size: 15px; color: #1e293b;">西兰花 300g</div>
+                <span class="sub item-status-text">已购买</span>
+              </div>
+              <div class="status-group">
+                <button class="status-btn pending" data-status-value="pending">待购买</button>
+                <button class="status-btn active purchased" data-status-value="purchased">已购买</button>
+                <button class="status-btn inventory" data-status-value="from_inventory">冰箱已有</button>
+              </div>
+            </div>
+
+            <div class="shopping-item" data-status="pending" data-category="vegetable">
+              <div class="between">
+                <div class="item-name" data-name="洋葱" data-quantity="200" data-unit="g" style="font-size: 15px; color: #1e293b;">洋葱 200g</div>
+                <span class="sub item-status-text">待购买</span>
+              </div>
+              <div class="status-group">
+                <button class="status-btn active pending" data-status-value="pending">待购买</button>
+                <button class="status-btn purchased" data-status-value="purchased">已购买</button>
+                <button class="status-btn inventory" data-status-value="from_inventory">冰箱已有</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" id="card-meat">
+          <div class="between"><div class="title">肉蛋类</div><span class="tag" id="count-meat">1 项</span></div>
+          <div class="shopping-list" id="list-meat">
+            <div class="shopping-item" data-status="pending" data-category="meat">
+              <div class="between">
+                <div class="item-name" data-name="鸡胸肉" data-quantity="400" data-unit="g" style="font-size: 15px; color: #1e293b;">鸡胸肉 400g</div>
+                <span class="sub item-status-text">待购买</span>
+              </div>
+              <div class="status-group">
+                <button class="status-btn active pending" data-status-value="pending">待购买</button>
+                <button class="status-btn purchased" data-status-value="purchased">已购买</button>
+                <button class="status-btn inventory" data-status-value="from_inventory">冰箱已有</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" id="card-seasoning">
+          <div class="between"><div class="title">调料类</div><span class="tag" id="count-seasoning">0 项</span></div>
+          <div class="shopping-list" id="list-seasoning"></div>
+        </div>
+
+        <div class="card" id="card-other">
+          <div class="between"><div class="title">其他</div><span class="tag" id="count-other">0 项</span></div>
+          <div class="shopping-list" id="list-other"></div>
+        </div>
+      </section>
+
+      <section class="screen" id="s-review">
+        <div class="card">
+          <div class="title">周复盘</div>
+          <p class="sub">用于 4 周 Go / No-Go 判定</p>
+          <div class="row">
+            <span class="pill active">计划耗时 9 分钟</span>
+            <span class="pill">采购耗时 37 分钟</span>
+            <span class="pill">完成率 78%</span>
+          </div>
+          <div class="hint">关键指标：漏买次数、浪费食材、预算对比（actualCost vs budget）。</div>
+        </div>
+      </section>
+
+      <nav class="bottom-nav">
+        <button class="tab active" data-target="s-home"><span>首页</span></button>
+        <button class="tab" data-target="s-plan"><span>计划</span></button>
+        <button class="tab" data-target="s-menu"><span>菜单</span></button>
+        <button class="tab" data-target="s-shopping"><span>清单</span></button>
+        <button class="tab" data-target="s-review"><span>复盘</span></button>
+      </nav>
+
+      <div class="modal-mask" id="addItemModal">
+        <div class="modal-sheet">
+          <div class="between">
+            <div class="title" style="font-size: 20px;">新增食材</div>
+            <button class="btn" id="closeAddItemModal" style="border:none; font-size: 24px; padding: 0; min-width: 32px; height: 32px;">×</button>
+          </div>
+          <div class="field">
+            <label>食材名</label>
+            <input id="inputName" type="text" placeholder="例如：土豆" />
+          </div>
+          <div style="display: flex; gap: 12px;">
+            <div class="field" style="flex: 2;">
+              <label>数量</label>
+              <input id="inputQuantity" type="number" value="1" />
+            </div>
+            <div class="field" style="flex: 1;">
+              <label>单位</label>
+              <select id="inputUnit">
+                <option value="个">个</option>
+                <option value="g">g</option>
+                <option value="ml">ml</option>
+                <option value="份">份</option>
+              </select>
+            </div>
+          </div>
+          <div class="field">
+            <label>分类</label>
+            <select id="inputCategory">
+              <option value="vegetable">🥦 蔬菜类</option>
+              <option value="meat">🥩 肉蛋类</option>
+              <option value="seasoning">🧂 调料类</option>
+              <option value="other">📦 其他</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>备注</label>
+            <input id="inputNote" type="text" placeholder="可选，如：炖牛腩用" />
+          </div>
+          <div class="row" style="margin-top: 24px;">
+            <button class="btn primary" id="saveAddItem" style="flex: 1; height: 52px; font-size: 16px;">确认添加</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const tabButtons = document.querySelectorAll(".tab");
+    const screens = document.querySelectorAll(".screen");
+
+    const handleSwitchTab = (targetId) => {
+      tabButtons.forEach((tabButton) => {
+        tabButton.classList.toggle("active", tabButton.dataset.target === targetId);
+      });
+
+      screens.forEach((screen) => {
+        screen.classList.toggle("active", screen.id === targetId);
+      });
+    };
+
+    tabButtons.forEach((tabButton) => {
+      tabButton.addEventListener("click", () => handleSwitchTab(tabButton.dataset.target));
+    });
+
+    const getShoppingItems = () => document.querySelectorAll(".shopping-item");
+    const filterButtons = document.querySelectorAll("#shoppingFilters .pill");
+    const summary = document.querySelector(".summary-line");
+    const statusLabelMap = {
+      pending: "待购买",
+      purchased: "已购买",
+      from_inventory: "冰箱已有"
+    };
+
+    const handleUpdateSummary = () => {
+      let pendingCount = 0;
+      let purchasedCount = 0;
+      let fromInventoryCount = 0;
+
+      const shoppingItems = getShoppingItems();
+
+      shoppingItems.forEach((item) => {
+        const status = item.dataset.status;
+        if (status === "pending") pendingCount += 1;
+        if (status === "purchased") purchasedCount += 1;
+        if (status === "from_inventory") fromInventoryCount += 1;
+      });
+
+      summary.textContent = `待购买 ${pendingCount} 项 · 已购买 ${purchasedCount} 项 · 冰箱已有 ${fromInventoryCount} 项`;
+    };
+
+    const handleApplyFilter = (filter) => {
+      filterButtons.forEach((filterButton) => {
+        filterButton.classList.toggle("active", filterButton.dataset.filter === filter);
+      });
+
+      const shoppingItems = getShoppingItems();
+
+      shoppingItems.forEach((item) => {
+        const isVisible = filter === "all" || item.dataset.status === filter;
+        item.style.display = isVisible ? "block" : "none";
+      });
+    };
+
+    const handleUpdateCategoryCounts = () => {
+      const categoryKeys = ["vegetable", "meat", "seasoning", "other"];
+      categoryKeys.forEach((categoryKey) => {
+        const list = document.getElementById(`list-${categoryKey}`);
+        const countTag = document.getElementById(`count-${categoryKey}`);
+        const card = document.getElementById(`card-${categoryKey}`);
+        const count = list ? list.querySelectorAll(".shopping-item").length : 0;
+        
+        // Initial visual state for purchased items
+        if (list) {
+          list.querySelectorAll(".shopping-item").forEach(item => {
+            if (item.dataset.status === "purchased") {
+              item.classList.add("is-purchased");
+            }
+          });
+        }
+
+        if (countTag) {
+          countTag.textContent = `${count} 项`;
+        }
+        if (card) {
+          card.style.display = count > 0 ? "block" : "none";
+        }
+      });
+    };
+
+    // Initialize empty states
+    handleUpdateCategoryCounts();
+
+    const shoppingScreen = document.getElementById("s-shopping");
+    shoppingScreen.addEventListener("click", (event) => {
+      const statusButton = event.target.closest(".status-btn");
+      if (!statusButton) {
+        return;
+      }
+
+      const shoppingItem = statusButton.closest(".shopping-item");
+      if (!shoppingItem) {
+        return;
+      }
+
+      const nextStatus = statusButton.dataset.statusValue;
+      shoppingItem.dataset.status = nextStatus;
+      
+      // Toggle visual feedback for purchased items
+      shoppingItem.classList.toggle("is-purchased", nextStatus === "purchased");
+
+      const statusText = shoppingItem.querySelector(".item-status-text");
+      if (statusText) {
+        statusText.textContent = statusLabelMap[nextStatus];
+      }
+
+      const buttons = shoppingItem.querySelectorAll(".status-btn");
+      buttons.forEach((button) => button.classList.remove("active"));
+      statusButton.classList.add("active");
+
+      handleUpdateSummary();
+      handleUpdateCategoryCounts();
+
+      const activeFilterButton = document.querySelector("#shoppingFilters .pill.active");
+      if (activeFilterButton) {
+        handleApplyFilter(activeFilterButton.dataset.filter);
+      }
+    });
+
+    filterButtons.forEach((filterButton) => {
+      filterButton.addEventListener("click", () => {
+        handleApplyFilter(filterButton.dataset.filter);
+      });
+    });
+
+    const addItemModal = document.getElementById("addItemModal");
+    const openAddItemModal = document.getElementById("openAddItemModal");
+    const closeAddItemModal = document.getElementById("closeAddItemModal");
+    const saveAddItem = document.getElementById("saveAddItem");
+    const inputName = document.getElementById("inputName");
+    const inputQuantity = document.getElementById("inputQuantity");
+    const inputUnit = document.getElementById("inputUnit");
+    const inputCategory = document.getElementById("inputCategory");
+    const inputNote = document.getElementById("inputNote");
+
+    const handleToggleAddItemModal = (shouldShow) => {
+      addItemModal.classList.toggle("show", shouldShow);
+      if (shouldShow) {
+        inputName.focus();
+      }
+    };
+
+    openAddItemModal.addEventListener("click", () => handleToggleAddItemModal(true));
+    closeAddItemModal.addEventListener("click", () => handleToggleAddItemModal(false));
+    // cancelAddItem 已在 HTML 中删除，此处移除相关绑定以防报错
+    // cancelAddItem.addEventListener("click", () => handleToggleAddItemModal(false));
+
+    const handleCreateShoppingItem = (name, quantity, unit, category, note) => {
+      return `
+        <div class="shopping-item" data-status="pending" data-category="${category}">
+          <div class="between">
+            <div class="item-name" data-name="${name}" data-quantity="${quantity}" data-unit="${unit}" style="font-size: 15px; color: #1e293b;">${name} ${quantity}${unit}</div>
+            <span class="sub item-status-text">待购买</span>
+          </div>
+          <div class="status-group">
+            <button class="status-btn active pending" data-status-value="pending">待购买</button>
+            <button class="status-btn purchased" data-status-value="purchased">已购买</button>
+            <button class="status-btn inventory" data-status-value="from_inventory">冰箱已有</button>
+          </div>
+          ${note ? `<div class="hint" style="background: #f8fafc; color: #64748b; border: 1px solid #f1f5f9;">备注：${note}</div>` : ""}
+        </div>
+      `;
+    };
+
+    const handleUpsertShoppingItem = (name, quantity, unit, category, note) => {
+      const targetList = document.getElementById(`list-${category}`);
+      if (!targetList) {
+        return;
+      }
+
+      const nameLower = name.toLowerCase();
+      const existingNameEls = targetList.querySelectorAll(".item-name");
+      let matchedItem = null;
+
+      existingNameEls.forEach((itemNameEl) => {
+        const currentName = (itemNameEl.dataset.name || "").toLowerCase();
+        const currentUnit = itemNameEl.dataset.unit || "";
+        if (currentName === nameLower && currentUnit === unit) {
+          matchedItem = itemNameEl;
+        }
+      });
+
+      if (matchedItem) {
+        const oldQuantity = Number(matchedItem.dataset.quantity || "0");
+        const mergedQuantity = oldQuantity + quantity;
+        matchedItem.dataset.quantity = String(mergedQuantity);
+        matchedItem.textContent = `${matchedItem.dataset.name} ${mergedQuantity}${unit}`;
+        return;
+      }
+
+      targetList.insertAdjacentHTML("beforeend", handleCreateShoppingItem(name, quantity, unit, category, note));
+    };
+
+    saveAddItem.addEventListener("click", () => {
+      const name = inputName.value.trim();
+      const quantity = Number(inputQuantity.value);
+      const unit = inputUnit.value;
+      const category = inputCategory.value;
+      const note = inputNote.value.trim();
+
+      if (!name) {
+        alert("请输入食材名");
+        return;
+      }
+
+      if (!Number.isFinite(quantity) || quantity <= 0) {
+        alert("请输入大于 0 的数量");
+        return;
+      }
+
+      handleUpsertShoppingItem(name, quantity, unit, category, note);
+      handleToggleAddItemModal(false);
+      handleUpdateSummary();
+      handleUpdateCategoryCounts();
+
+      const activeFilterButton = document.querySelector("#shoppingFilters .pill.active");
+      if (activeFilterButton) {
+        handleApplyFilter(activeFilterButton.dataset.filter);
+      }
+
+      inputName.value = "";
+      inputQuantity.value = "1";
+      inputUnit.value = "个";
+      inputCategory.value = "vegetable";
+      inputNote.value = "";
+    });
+
+    handleUpdateSummary();
+    handleUpdateCategoryCounts();
+  </script>
+</body>
+</html>
