@@ -1,8 +1,8 @@
-# 买菜 APP：开发模型与提示词手册（Cursor 可直接复用）
+# 周备有谱：开发模型与提示词手册（Cursor 可直接复用）
 
 ## 使用说明（统一口径）
 
-- 适用项目文件：`product-prototype-mobile.html`、`product-prototype.html`、`bugFix.md`、`tech-architecture.md`、`plan.md`、`demo.md`、`开发计划与验收SOP.md`
+- 适用项目文件：`weekly-prep-docs/01-product/product-prototype-mobile.html`、`weekly-prep-docs/01-product/product-prototype.html`、`weekly-prep-docs/02-architecture/bugFix.md`、`weekly-prep-docs/02-architecture/tech-architecture.md`、`weekly-prep-docs/03-process/plan.md`、`weekly-prep-docs/01-product/demo.md`、`weekly-prep-docs/03-process/开发计划与验收SOP.md`
 - 当前策略默认模型：`Kimi K2.5`（成本更友好）
 - 代码主力模型：`GPT-5.3 Codex`
 - 复杂问题升级：`GPT-5.4` -> `Opus 4.6`
@@ -27,7 +27,7 @@
 **可直接复制**
 
 ```text
-你是资深前端与移动端体验设计工程师。请基于当前项目中的 `product-prototype-mobile.html` 优化页面可用性与视觉层级，必须直接修改代码，不只给建议。
+你是资深前端与移动端体验设计工程师。请基于当前项目中的 `weekly-prep-docs/01-product/product-prototype-mobile.html` 优化页面可用性与视觉层级，必须直接修改代码，不只给建议。
 
 目标：
 1) 提升信息层级清晰度（标题、价格、按钮、状态）
@@ -63,7 +63,7 @@
 **可直接复制**
 
 ```text
-请读取并分析 `bugFix.md`，将问题清单重构为“可执行修复计划”，并给出可落地的修复顺序。
+请读取并分析 `weekly-prep-docs/02-architecture/bugFix.md`，将问题清单重构为“可执行修复计划”，并给出可落地的修复顺序。
 
 请按每个 bug 输出以下结构：
 - 严重级别（P0/P1/P2/P3）
@@ -92,7 +92,7 @@
 **可直接复制**
 
 ```text
-请审阅 `tech-architecture.md`，将其升级为“可落地执行”的架构文档。重点从以下维度补强：
+请审阅 `weekly-prep-docs/02-architecture/tech-architecture.md`，将其升级为“可落地执行”的架构文档。重点从以下维度补强：
 1) 可维护性（模块边界、职责划分、命名规范）
 2) 扩展性（活动高峰、品类扩展、多城市）
 3) 稳定性（容错、重试、降级、幂等）
@@ -122,7 +122,7 @@
 **可直接复制**
 
 ```text
-请基于 `plan.md` 输出一版“可交付、可验收、可跟踪”的迭代计划，按周拆解。
+请基于 `weekly-prep-docs/03-process/plan.md` 输出一版“可交付、可验收、可跟踪”的迭代计划，按周拆解。
 
 每条任务必须包含：
 - 输入（依赖条件）
@@ -150,7 +150,7 @@
 **可直接复制**
 
 ```text
-请联动优化 `demo.md` 与 `开发计划与验收SOP.md`，保证“演示内容”和“验收标准”完全一致。
+请联动优化 `weekly-prep-docs/01-product/demo.md` 与 `weekly-prep-docs/03-process/开发计划与验收SOP.md`，保证“演示内容”和“验收标准”完全一致。
 
 目标：
 1) Demo 讲解有业务价值主线，不只是功能罗列

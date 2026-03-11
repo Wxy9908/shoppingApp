@@ -1,35 +1,23 @@
-# dependencies
-node_modules/
+# Root-level ignores for the whole workspace
 
-# production build
-dist/
-build/
+# Frontend dependency and build outputs
+frontend/node_modules/
+frontend/dist/
+frontend/dist-ssr/
+frontend/.vite/
 
-# local env files
-.env
-.env.local
-.env.*.local
-
-# logs
+# Common log files
+*.log
 npm-debug.log*
 yarn-debug.log*
-yarn-error.log*
 pnpm-debug.log*
 
-# IDE/editor
-.vscode/
-.idea/
-*.swp
-*.swo
-
-# OS files
+# OS and editor artifacts
 .DS_Store
 Thumbs.db
+.idea/
+*.suo
+*.swp
 
-# test coverage
-coverage/
-
-# cache
-.cache/
-.vite/
-*.tsbuildinfo
+# Keep product docs and prototypes versioned
+# (No ignore rules for *.md / *.html by design)
