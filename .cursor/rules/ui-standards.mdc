@@ -1,0 +1,112 @@
+---
+description: UI/UX and Styling Standards for the Shopping App
+globs: **/*.{vue,css}
+alwaysApply: true
+---
+
+# UI/UX and Styling Standards
+
+## Style Layer Priority (Most Important Rule)
+
+CSS is layered in this fixed order: `tokens.css` → `base.css` → `components.css` → `responsive.css` → scoped page styles.
+
+- **Always prefer global classes** from `components.css` before writing any scoped styles.
+- Scoped styles in `.vue` files are **only** for page-specific layout or overrides that cannot be expressed with global classes.
+- **Never re-implement** in scoped styles what a global class already does (e.g., do not write a local `.my-card` that duplicates `.card`).
+
+## Color Tokens (No Hardcoded Values)
+
+- **Always use `var(--prep-*)` tokens** — never hardcode hex values in new styles.
+- Key tokens: `--prep-bg`, `--prep-surface`, `--prep-text`, `--prep-text-muted`, `--prep-primary`, `--prep-primary-soft`, `--prep-success`, `--prep-warning`, `--prep-danger`
+- Soft/background variants: `--prep-primary-soft` (#eff6ff), `--prep-success-soft` (#ecfdf5), `--prep-warning-soft` (#fff7ed)
+- Divider/line: `--prep-line` (#f1f5f9), `--prep-line-soft` (rgba black 0.05)
+
+## Spacing and Layout
+
+- **All spacing must use tokens**: `--prep-space-1` (4px) through `--prep-space-8` (32px).
+- **Tight related-element gaps**: use `--prep-space-1` (4px), e.g., budget label next to date range.
+- **Between sections**: typically `--prep-space-4` (12px) to `--prep-space-5` (16px).
+- **Page layout**: use `.page` class (CSS grid, 12px gap) as the root wrapper inside every page.
+- **Flex space-between rows**: use `.between` class — do not write `display:flex; justify-content:space-between` inline.
+
+## Card System
+
+Use the appropriate global card class for white-surface containers. Do not create custom card variants.
+
+| Class | Use Case |
+|---|---|
+| `.card` | Generic content block |
+| `.hero-card` | Homepage hero / primary summary block |
+| `.head-card` | Page header summary with key metadata |
+| `.meal-card` | Individual meal entry (radius 24px, slightly different shadow) |
+| `.backup-panel` | Data export/import section |
+
+All card variants: white surface (`--prep-surface`), `border-radius: var(--prep-radius-xl)` (20px), `padding: 20px`, subtle `box-shadow: var(--prep-shadow-card)`.
+
+## Typography Hierarchy
+
+Use these global classes for text — do not set font sizes/weights manually:
+
+| Class | Size | Weight | Color | Use |
+|---|---|---|---|---|
+| `.title` / `.hero-title` / `.card-title` | 16px | 600 | #1e293b | Section/card titles |
+| `.sub-title` | 15px | 600 | #1e293b | Sub-section titles |
+| `.desc` / `.hero-sub` / `.meta-text` | 13px | 400 | `--prep-text-muted` | Supporting text, metadata |
+
+## Tags and Chips
+
+Use these global classes for inline labels and status badges:
+
+| Class | Background | Color | Use |
+|---|---|---|---|
+| `.hero-tag` / `.chip--active` | `--prep-success-soft` | #059669 | Active/positive state |
+| `.week-tag` | `--prep-warning-soft` | #d97706 | Week label / pending |
+| `.chip` / `.meal-tag` / `.category-count` | #f1f5f9 | #475569 | Neutral info label |
+| `.meal-tag--done` | #ecfdf5 | #059669 | Completed meal |
+
+All tags: `display: inline-flex`, `border-radius: 8px`, `padding: 4px 10px`, `font-size: 12px`, `font-weight: 500`.
+
+## Filter Pills (Horizontal Scroll Tabs)
+
+- Scrollable filter rows use the `.filter-row` / `.date-tabs` / `.chip-row` wrapper (flex, gap 8px, hidden scrollbar).
+- Individual pills: use `.filter-pill` / `.date-pill` / `.pill` — never custom tab implementations.
+- Active state: add `--active` modifier class (e.g., `filter-pill--active`) — background `#eff6ff`, color `--prep-primary`, `font-weight: 500`.
+
+## Button System
+
+| Class | Height | Use |
+|---|---|---|
+| `.btn` | 40px | Default ghost button |
+| `.btn.btn--primary` | 40px | Primary action (blue, shadow) |
+| `.btn.btn--sm` | 32px | Compact secondary actions |
+| `.btn.btn--lg` | 48px | Full-width bottom CTA |
+
+Do not use Vant's `<van-button>` for layout-level actions — use `.btn` classes directly for consistency.
+
+## Shopping Status Buttons
+
+Three-state toggle buttons for shopping items use `.status-btn` (base) + `.status-btn--active` + state class:
+
+- `.status-btn--active.pending` → blue (#eff6ff bg, #2563eb text)
+- `.status-btn--active.purchased` → green (#ecfdf5 bg, #059669 text)
+- `.status-btn--active.inventory` → amber (#fff7ed bg, #d97706 text)
+
+## Progress Badge
+
+Use the global `.progress-badge` class for all percentage / completion displays:
+- 11px, font-weight 600, `--prep-primary` color, `--prep-primary-soft` background, subtle border.
+- Always set `min-width: 36px` and `text-align: center` to prevent layout shift.
+
+## Color and Borders
+
+- **Border Tokens**: Use `--prep-primary-border` for subtle decorative borders on primary-colored elements.
+- **Subtle Borders**: Decorative borders should be very subtle (e.g., `rgba(59, 130, 246, 0.05)`).
+- **Focus on Content**: Styling should prioritize content readability over heavy borders or backgrounds.
+
+## Date and Time
+
+- **Week Labels**: Prefer "Week X" format for plan titles, auto-incrementing from the first use.
+- **Date Ranges**: Display specific date ranges (e.g., "3/8 - 3/12") in a secondary, smaller style below the main title or budget.
+- **Formatting**: Use `M/D - M/D` format for date ranges.
+·
+

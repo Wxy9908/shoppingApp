@@ -198,10 +198,41 @@ const toMonday = (dateInput = new Date()) => {
   return date.toISOString().slice(0, 10)
 }
 
+export const formatWeekRange = (weekStartDate, days = 7, selectedDayIndexes = []) => {
+  if (!weekStartDate) return ''
+  const start = new Date(weekStartDate)
+  const formatMD = (date) => `${date.getMonth() + 1}/${date.getDate()}`
+  const normalizedSelectedDayIndexes = normalizeSelectedDayIndexes(selectedDayIndexes, days)
+  if (normalizedSelectedDayIndexes.length && normalizedSelectedDayIndexes.length < 7) {
+    return normalizedSelectedDayIndexes
+      .map((dayIndex) => {
+        const targetDate = new Date(weekStartDate)
+        targetDate.setDate(targetDate.getDate() + dayIndex)
+        return formatMD(targetDate)
+      })
+      .join('、')
+  }
+
+  const end = new Date(weekStartDate)
+  end.setDate(end.getDate() + (days - 1))
+  return `${formatMD(start)} - ${formatMD(end)}`
+}
+
 const formatDateByOffset = (weekStartDate, offsetDays) => {
   const date = new Date(weekStartDate)
   date.setDate(date.getDate() + offsetDays)
   return date.toISOString().slice(0, 10)
+}
+
+const normalizeSelectedDayIndexes = (selectedDayIndexes, fallbackDays = 7) => {
+  if (Array.isArray(selectedDayIndexes) && selectedDayIndexes.length) {
+    return [...new Set(selectedDayIndexes.map((value) => Number(value)).filter((value) => Number.isInteger(value) && value >= 0 && value <= 6))]
+      .sort((left, right) => left - right)
+  }
+
+  const parsedFallbackDays = Number(fallbackDays)
+  const dayCount = Number.isInteger(parsedFallbackDays) && parsedFallbackDays >= 1 && parsedFallbackDays <= 7 ? parsedFallbackDays : 7
+  return Array.from({ length: dayCount }, (_, index) => index)
 }
 
 export const getNextWeekStartDate = (weekStartDate) => {
@@ -302,11 +333,13 @@ export const usePrepStore = defineStore('prep', {
   state: () => ({
     activePlanId: '',
     currentPlan: null,
+    planCount: 0,
     mealItems: [],
     shoppingItems: [],
     inventoryItems: [],
     inventoryLogs: [],
     weeklyReview: null,
+    shoppingListNeedsRefresh: false,
     lastRestoreAt: '',
     isLoading: false,
     lastError: '',
@@ -338,18 +371,25 @@ export const usePrepStore = defineStore('prep', {
 
       try {
         const weekStartDate = toMonday()
-        const plan = await db.plans.where('weekStartDate').equals(weekStartDate).first()
+        const [plan, planCount] = await Promise.all([
+          db.plans.where('weekStartDate').equals(weekStartDate).first(),
+          db.plans.count(),
+        ])
+        this.planCount = planCount
+
         if (!plan) {
           this.activePlanId = ''
           this.currentPlan = null
           this.mealItems = []
           this.shoppingItems = []
           this.weeklyReview = null
+          this.shoppingListNeedsRefresh = false
         } else {
           this.activePlanId = plan.id
           this.currentPlan = plan
           await this.loadPlanData(plan.id)
           await this.loadWeeklyReview(plan.id, plan.weekStartDate)
+          this.shoppingListNeedsRefresh = false
         }
 
         await this.loadInventoryData()
@@ -370,30 +410,81 @@ export const usePrepStore = defineStore('prep', {
         const existingPlan = await db.plans.where('weekStartDate').equals(weekStartDate).first()
 
         if (existingPlan) {
+          const existingSelectedDayIndexes = normalizeSelectedDayIndexes(existingPlan.selectedDayIndexes, existingPlan.days)
+          const normalizedSelectedDayIndexes = normalizeSelectedDayIndexes(
+            payload.selectedDayIndexes ?? existingPlan.selectedDayIndexes,
+            payload.days ?? existingPlan.days
+          )
+          const hasCookingDaysChanged =
+            existingSelectedDayIndexes.join('|') !== normalizedSelectedDayIndexes.join('|')
           const updatedPlan = {
             ...existingPlan,
             ...payload,
+            weekLabel: existingPlan.weekLabel || payload.weekLabel || `Week ${this.planCount || 1}`,
+            days: normalizedSelectedDayIndexes.length,
+            selectedDayIndexes: normalizedSelectedDayIndexes,
             updatedAt: now,
           }
           await db.plans.put(updatedPlan)
           this.activePlanId = updatedPlan.id
           this.currentPlan = updatedPlan
+          if (hasCookingDaysChanged && this.mealItems.length) {
+            this.shoppingListNeedsRefresh = true
+          }
           return
         }
 
+        const normalizedSelectedDayIndexes = normalizeSelectedDayIndexes(payload.selectedDayIndexes, payload.days)
         const newPlan = {
           id: buildId('plan'),
           weekStartDate,
+          ...payload,
+          weekLabel: payload.weekLabel || `Week ${this.planCount + 1}`,
+          planName: payload.planName || '',
+          days: normalizedSelectedDayIndexes.length,
+          selectedDayIndexes: normalizedSelectedDayIndexes,
           status: 'draft',
           createdAt: now,
           updatedAt: now,
-          ...payload,
         }
         await db.plans.add(newPlan)
         this.activePlanId = newPlan.id
         this.currentPlan = newPlan
+        this.planCount = await db.plans.count()
       } catch (error) {
         this.lastError = '保存周计划失败，请检查输入后重试。'
+        console.error(error)
+      } finally {
+        this.isLoading = false
+      }
+    },
+    async deleteCurrentPlan() {
+      if (!this.currentPlan?.id) {
+        return
+      }
+
+      this.isLoading = true
+      this.lastError = ''
+
+      try {
+        const currentPlanId = this.currentPlan.id
+
+        await db.transaction('rw', db.plans, db.mealItems, db.shoppingItems, db.weeklyReviews, async () => {
+          await db.mealItems.where('planId').equals(currentPlanId).delete()
+          await db.shoppingItems.where('planId').equals(currentPlanId).delete()
+          await db.weeklyReviews.where('planId').equals(currentPlanId).delete()
+          await db.plans.delete(currentPlanId)
+        })
+
+        this.activePlanId = ''
+        this.currentPlan = null
+        this.mealItems = []
+        this.shoppingItems = []
+        this.weeklyReview = null
+        this.shoppingListNeedsRefresh = false
+        this.planCount = await db.plans.count()
+      } catch (error) {
+        this.lastError = '删除周计划失败，请稍后重试。'
         console.error(error)
       } finally {
         this.isLoading = false
@@ -528,9 +619,12 @@ export const usePrepStore = defineStore('prep', {
         const now = new Date().toISOString()
         const nextMealItems = []
 
-        for (let dayIndex = 0; dayIndex < this.currentPlan.days; dayIndex += 1) {
+        const selectedDayIndexes = normalizeSelectedDayIndexes(this.currentPlan.selectedDayIndexes, this.currentPlan.days)
+
+        for (let selectedDayPosition = 0; selectedDayPosition < selectedDayIndexes.length; selectedDayPosition += 1) {
+          const dayIndex = selectedDayIndexes[selectedDayPosition]
           for (let mealTypeIndex = 0; mealTypeIndex < DEFAULT_MEAL_TYPES.length; mealTypeIndex += 1) {
-            const templateIndex = (dayIndex * DEFAULT_MEAL_TYPES.length + mealTypeIndex) % dishTemplates.length
+            const templateIndex = (selectedDayPosition * DEFAULT_MEAL_TYPES.length + mealTypeIndex) % dishTemplates.length
             const template = dishTemplates[templateIndex]
             nextMealItems.push({
               id: buildId('meal'),
@@ -556,6 +650,7 @@ export const usePrepStore = defineStore('prep', {
         })
 
         this.mealItems = nextMealItems
+        this.shoppingListNeedsRefresh = true
       } catch (error) {
         this.lastError = '生成菜单失败，请稍后再试。'
         console.error(error)
@@ -594,6 +689,7 @@ export const usePrepStore = defineStore('prep', {
 
         await db.mealItems.put(updatedItem)
         this.mealItems = this.mealItems.map((item) => (item.id === mealItemId ? updatedItem : item))
+        this.shoppingListNeedsRefresh = true
       } catch (error) {
         this.lastError = '替换菜品失败，请重试。'
         console.error(error)
@@ -641,6 +737,7 @@ export const usePrepStore = defineStore('prep', {
       try {
         await db.mealItems.delete(mealItemId)
         this.mealItems = this.mealItems.filter((item) => item.id !== mealItemId)
+        this.shoppingListNeedsRefresh = true
       } catch (error) {
         this.lastError = '删除菜品失败，请稍后再试。'
         console.error(error)
@@ -713,6 +810,7 @@ export const usePrepStore = defineStore('prep', {
         })
 
         this.shoppingItems = nextShoppingItems
+        this.shoppingListNeedsRefresh = false
       } catch (error) {
         this.lastError = '生成购物清单失败，请稍后再试。'
         console.error(error)
@@ -1000,9 +1098,12 @@ export const usePrepStore = defineStore('prep', {
         const nextPlan = {
           id: nextPlanId,
           weekStartDate: nextWeekStartDate,
+          weekLabel: this.currentPlan.weekLabel || '',
+          planName: this.currentPlan.planName || '',
           status: 'draft',
           peopleCount: this.currentPlan.peopleCount,
           days: this.currentPlan.days,
+          selectedDayIndexes: normalizeSelectedDayIndexes(this.currentPlan.selectedDayIndexes, this.currentPlan.days),
           budget: this.currentPlan.budget,
           preferences: this.currentPlan.preferences || '',
           createdAt: now,
@@ -1055,6 +1156,7 @@ export const usePrepStore = defineStore('prep', {
           }
           return left.name.localeCompare(right.name, 'zh-CN')
         })
+        this.shoppingListNeedsRefresh = false
       } catch (error) {
         this.lastError = '复制下周计划失败，请稍后重试。'
         console.error(error)

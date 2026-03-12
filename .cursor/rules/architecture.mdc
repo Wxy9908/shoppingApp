@@ -1,0 +1,86 @@
+---
+description: Project Architecture Rules — tech stack ADRs, layer boundaries, prohibitions, and directory conventions
+globs: **/*.{vue,js}
+alwaysApply: true
+---
+
+# Project Architecture Rules
+
+## Tech Stack ADRs (Locked — Do Not Change Without Explicit Decision)
+
+- **ADR-001** Frontend: Vue 3 + JavaScript (no TypeScript migration without team decision) + Vite
+- **ADR-002** State management: Pinia (`usePrepStore` is the single source of truth for all domain state)
+- **ADR-003** Routing: Vue Router 4, HTML5 history mode, no lazy-loading until performance requires it
+- **ADR-004** Mobile UI: Vant 4 — customized exclusively via CSS variable overrides in `tokens.css` and `base.css`
+- **ADR-005** Persistence: IndexedDB via Dexie — the **sole** storage layer in Stage A (no backend, no localStorage for domain data)
+- **ADR-006** Testing: Vitest (unit/integration) + Playwright (E2E)
+- **ADR-007** Backend (Stage B only): Fastify + JavaScript — do not introduce server-side code in Stage A
+
+## Architectural Layers
+
+```
+UI Layer         →  src/modules/<feature>/pages/
+                    Display, interaction, user feedback ONLY.
+                    Reads from store getters; calls store actions; never owns business logic.
+
+App Service      →  src/app/store/
+                    Orchestrates cross-module flows (plan → menu → list → inventory → review).
+                    All store actions are the boundary between UI and data.
+
+Rule Engine      →  src/shared/rules/  (pure functions — no side effects)
+                    Alias maps, unit conversions, pieceToGram maps, copy whitelist config.
+                    Must be independently unit-testable.
+
+Repository       →  store actions that wrap Dexie calls
+                    Unified read/write abstraction; same interface must work for future API adapter.
+
+Infra            →  src/infra/db/
+                    Dexie instance, table schemas, import/export utilities, log collection.
+```
+
+## Hard Prohibitions
+
+- **Page layer** MUST NOT import from `src/infra/db/` or call Dexie directly — always go through store actions.
+- **Page layer** MUST NOT re-implement rule engine logic (alias normalization, unit conversion, aggregation pipeline, copy whitelist).
+- Compatibility/derived fields (`isFromInventory`, `isPurchased`) MUST NOT be double-written in business logic — they are computed from `purchaseStatus`.
+- Do NOT add new `npm`/`pnpm` dependencies without explicit justification; prefer extending existing libs.
+- Do NOT introduce a backend or remote API calls in Stage A — the app is fully local-first.
+
+## Directory Conventions
+
+```
+src/
+  app/
+    router/index.js          ← Route definitions (all 6 pages statically imported)
+    store/usePrepStore.js     ← Main Pinia store (all domain state + actions)
+    store/useAppStore.js      ← App-level UI state only (e.g. activePlanId)
+    constants/brand.js        ← PRODUCT_NAME and other app-wide constants
+  modules/
+    <feature>/pages/<FeatureName>Page.vue   ← One page component per feature
+  shared/
+    rules/                   ← Pure rule functions (alias maps, unit maps, etc.)
+    utils/                   ← Shared utility functions
+  infra/
+    db/dexie.js              ← Dexie instance (DB name: weekly-meal-prep-assistant, v2)
+    db/tables.js             ← Table schemas (7 tables)
+  styles/
+    tokens.css               ← CSS custom properties (single source of design tokens)
+    base.css                 ← CSS reset + Vant variable overrides
+    components.css           ← Global reusable utility classes
+    responsive.css           ← Breakpoint media queries
+```
+
+## Stage A Principle
+
+This is a **local-first, single-user** MVP. All data lives in IndexedDB on the user's device.
+Stage B (multi-device sync via Fastify + SQLite/PostgreSQL) is future scope — keep the Repository layer interface clean so it can be swapped to an API adapter without touching UI or rule engine code.
+
+## Page Bootstrap Pattern
+
+Every page MUST call `prepStore.bootstrap()` in `onMounted` to ensure the current week's plan is loaded before rendering:
+
+```js
+import { usePrepStore } from '@/app/store/usePrepStore'
+const prepStore = usePrepStore()
+onMounted(async () => { await prepStore.bootstrap() })
+```

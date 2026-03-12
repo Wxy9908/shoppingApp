@@ -1,0 +1,81 @@
+---
+description: Business Data Rules — state machines, inventory integrity, list aggregation pipeline, week copy, and backup/restore
+globs: **/*.{vue,js}
+alwaysApply: true
+---
+
+# Business Data Rules
+
+## Shopping Item State Machine (RULE — Mutex)
+
+Shopping items have exactly **three mutex states**. Only one can be active at a time:
+
+| Status | Meaning |
+|---|---|
+| `pending` | Not yet purchased |
+| `purchased` | Bought during this shopping trip |
+| `from_inventory` | Already at home (triggers inventory deduction) |
+
+- `isFromInventory` and `isPurchased` are **derived-only** fields — they reflect `purchaseStatus` and MUST NOT be set independently in business logic (no double-write).
+- All state transitions MUST go through the `updateShoppingItemStatus(itemId, nextStatus)` store action.
+- Switching **to** `from_inventory` → triggers inventory deduction + writes `InventoryLog`.
+- Switching **away from** `from_inventory` → triggers inventory rollback + writes `rollback` log entry.
+
+## Inventory Integrity Rules (FIX-001)
+
+- **ALL** inventory quantity changes MUST create an `InventoryLog` record — no direct quantity mutation.
+- `InventoryLog.changeType` values: `reserve` / `consume` / `rollback`
+- **Idempotency**: before deducting, check if a log entry with the same `sourceId` already exists — block duplicate deductions (do not silently skip or overwrite).
+- **Rollback**: canceling a `from_inventory` status MUST write a `rollback` log entry and restore the previous quantity.
+- Log fields required: `ingredientNameNormalized`, `changeType`, `delta`, `unit`, `sourceType`, `sourceId`, `beforeQuantity`, `afterQuantity`, `createdAt`.
+
+## List Aggregation Pipeline (RULE-001 — Fixed Order, Never Reorder)
+
+Ingredient aggregation MUST follow this exact 4-step pipeline:
+
+```
+1. Alias normalization    →  ingredientAliasMap   (e.g., 西红柿 → 番茄)
+2. Unit normalization     →  unitConvertMap        (convert all quantities to base units)
+3. Piece-to-base-unit     →  pieceToGramMap        ("个" unit → grams for supported ingredients)
+4. Aggregate              →  group by (ingredientNameNormalized + baseUnit)
+```
+
+- **Base units**: solid ingredients → `g`; liquid ingredients → `ml` (RULE-002).
+- **Aggregate key**: `ingredientNameNormalized + baseUnit` — never aggregate across different base units.
+- **Missing mapping** (ingredient not in `pieceToGramMap`): set `needsManualConfirm: true` on that item — NEVER silently merge or guess.
+- Same name + same unit on manual add → auto-merge into existing item (FEAT-004).
+- Same name + different unit on manual add → keep as separate item, do NOT force-convert.
+
+## Week Copy Rules (RULE-005)
+
+When copying a plan to the next week via `copyCurrentPlanToNextWeek()`:
+
+**Copy (whitelist only):**
+- Plan meta: `peopleCount`, `days`, `selectedDayIndexes`, `budget`, `preferences`, `weekLabel`
+- Meal structure: `dishName`, `mealType`, `date`, `prepMinutes`, `difficulty`, `ingredients`, `cookingSteps`
+- Shopping item structure: `name`, `quantity`, `unit`, `category`
+
+**Must reset (execution state cleared):**
+- `plan.status` → `draft`
+- `shoppingItem.purchaseStatus` → `pending`
+- `shoppingItem.isFromInventory` → `false`
+- `shoppingItem.isPurchased` → `false`
+- `mealItem.status` → `pending`
+- All weekly review fields → cleared / null
+
+A failed copy operation MUST NOT persist any partial data — use a transaction or roll back entirely.
+
+## Data Backup / Restore Rules (FIX-005)
+
+- **Export**: full JSON dump of all 6 tables (`plans`, `mealItems`, `shoppingItems`, `inventoryItems`, `inventoryLogs`, `weeklyReviews`).
+- **Import**: full overwrite ONLY — no partial merge, no field-level merging.
+- **Pre-import snapshot**: MUST create a `backupSnapshot` record in IndexedDB **before** every import operation starts.
+- **Confirm dialog**: always show a destructive-action confirmation before overwriting.
+- **On import failure**: automatically revert to the pre-import snapshot (ERR-003) and show a success message confirming the revert.
+- File name format: use `formatBackupFileName()` utility for consistent naming.
+
+## Data Model Key Constraints
+
+- `InventoryItem` fields: `id`, `ingredientNameNormalized`, `quantity`, `unit` (g or ml), `updatedAt`
+- `plans.weekStartDate` is always the **Monday** of that week — used as the unique key for the current week's plan
+- `planCount` auto-increments to derive "Week X" labels — never reset

@@ -3,13 +3,14 @@
     <header class="hero-card">
       <div class="between">
         <h1 class="title">本周计划 · {{ currentWeekLabel }}</h1>
-        <span class="hero-tag">进行中</span>
+        <span v-if="hasCurrentPlan" class="hero-tag">进行中</span>
       </div>
       <p class="desc">{{ planMetaText }}</p>
-      <div class="row" style="margin-top: 16px;">
-        <button class="btn btn--primary" style="flex: 1;" @click="handleGoPlan">新建计划</button>
-        <button class="btn" style="flex: 1;" :disabled="!prepStore.hasActivePlan" @click="handleCopyToNextWeek">
-          复制上周
+      <div v-if="weekRangeText" class="week-range-text">{{ weekRangeText }}</div>
+      <div class="row home-plan-actions" :class="{ 'home-plan-actions--single': !hasCurrentPlan }">
+        <button class="btn btn--primary home-plan-btn" @click="handleGoPlan">{{ planEntryButtonText }}</button>
+        <button v-if="hasCurrentPlan" class="btn home-plan-btn" @click="handleCopyToNextWeek">
+          复制到下周
         </button>
       </div>
     </header>
@@ -17,10 +18,10 @@
     <article class="card" aria-label="周进度">
       <div class="between">
         <h2 class="title">本周进度</h2>
-        <span class="tag" style="color: var(--prep-primary); background: #eff6ff;">{{ completionPercent }}%</span>
+        <div class="progress-badge">{{ completionPercent }}%</div>
       </div>
-      <div class="progress-container" style="margin-top: 12px; height: 8px; background: #f1f5f9; border-radius: 999px; overflow: hidden; position: relative;">
-        <div class="progress-bar" :style="{ width: completionPercent + '%', height: '100%', background: 'linear-gradient(90deg, var(--prep-primary), #60a5fa)', borderRadius: '999px', transition: 'width 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)' }"></div>
+      <div class="progress-container">
+        <div class="progress-bar" :style="{ width: completionPercent + '%', height: '100%', background: 'linear-gradient(90deg, var(--prep-primary), #60a5fa)', borderRadius: '999px', transition: 'width 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)' }" />
       </div>
       <p class="desc" style="margin-top: 12px;">
         已完成菜品 {{ completedMealCount }}/{{ totalMealCount }} · 已购买 {{ purchasedCount }}/{{ totalShoppingCount }}
@@ -40,7 +41,7 @@
 import { computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { showFailToast, showSuccessToast } from 'vant'
-import { MEAL_ITEM_STATUS, SHOPPING_ITEM_STATUS, usePrepStore } from '../../../app/store/usePrepStore'
+import { MEAL_ITEM_STATUS, SHOPPING_ITEM_STATUS, usePrepStore, formatWeekRange } from '../../../app/store/usePrepStore'
 
 defineOptions({
   name: 'HomePage',
@@ -69,10 +70,21 @@ const completionPercent = computed(() => {
 })
 
 const currentWeekLabel = computed(() => {
-  if (!prepStore.currentPlan?.weekStartDate) {
+  if (!prepStore.currentPlan) {
     return '未创建'
   }
-  return prepStore.currentPlan.weekStartDate
+  return prepStore.currentPlan.weekLabel || `Week ${prepStore.planCount || 1}`
+})
+
+const weekRangeText = computed(() => {
+  if (!prepStore.currentPlan?.weekStartDate) {
+    return ''
+  }
+  return formatWeekRange(
+    prepStore.currentPlan.weekStartDate,
+    prepStore.currentPlan.days,
+    prepStore.currentPlan.selectedDayIndexes || []
+  )
 })
 
 const planMetaText = computed(() => {
@@ -80,8 +92,12 @@ const planMetaText = computed(() => {
     return '还没有本周计划，先创建计划再生成菜单与清单。'
   }
 
-  return `${prepStore.currentPlan.days} 天 · ${prepStore.currentPlan.peopleCount} 人 · 预算 ${prepStore.currentPlan.budget} 元`
+  const planNameText = prepStore.currentPlan.planName ? `${prepStore.currentPlan.planName} · ` : ''
+  return `${planNameText}${prepStore.currentPlan.days} 天 · ${prepStore.currentPlan.peopleCount} 人 · 预算 ${prepStore.currentPlan.budget} 元`
 })
+
+const planEntryButtonText = computed(() => (prepStore.hasActivePlan ? '编辑计划' : '新建计划'))
+const hasCurrentPlan = computed(() => prepStore.hasActivePlan)
 
 const handleGoPlan = () => {
   router.push('/plan')
@@ -104,6 +120,11 @@ const handleGoReview = () => {
 }
 
 const handleCopyToNextWeek = async () => {
+  if (!hasCurrentPlan.value) {
+    showFailToast('请先创建本周计划')
+    return
+  }
+
   await prepStore.copyCurrentPlanToNextWeek()
   if (prepStore.lastError) {
     showFailToast(prepStore.lastError)
@@ -119,19 +140,40 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.hero-card {
-  background: var(--prep-surface);
-  border-radius: var(--prep-radius-xl);
-  padding: 20px;
-  margin-bottom: 16px;
-  box-shadow: var(--prep-shadow-card);
-  border: 1px solid rgba(0, 0, 0, 0.02);
+.week-range-text {
+  font-size: 11px;
+  color: var(--prep-text-muted);
+  background: rgba(0, 0, 0, 0.03);
+  padding: 2px 6px;
+  border-radius: 4px;
+  display: inline-block;
+}
+
+.progress-container {
+  margin-top: 12px;
+  height: 8px;
+  background: #f1f5f9;
+  border-radius: 999px;
+  overflow: hidden;
+  position: relative;
 }
 
 .row {
   display: flex;
   gap: 12px;
   align-items: center;
+}
+
+.home-plan-actions {
+  margin-top: var(--prep-space-5);
+}
+
+.home-plan-actions--single {
+  justify-content: flex-start;
+}
+
+.home-plan-btn {
+  flex: 1;
 }
 
 .quick-card {

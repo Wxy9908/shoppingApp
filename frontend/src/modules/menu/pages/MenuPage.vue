@@ -5,6 +5,12 @@
         <div class="title">菜单页</div>
         <span class="tag orange">周视图</span>
       </div>
+      <p v-if="isMenuOutdated" class="hint">
+        做饭日期已调整，当前菜单与计划不一致，请重新生成本周菜单。
+      </p>
+      <p v-if="prepStore.shoppingListNeedsRefresh && prepStore.shoppingItems.length" class="hint">
+        菜单已变更，购物清单需要重新生成后再采购。
+      </p>
       <div v-if="dateTabs.length" class="scroll-x" style="margin-top: 12px;">
         <span
           v-for="dateTab in dateTabs"
@@ -81,16 +87,16 @@
       </article>
 
       <button class="btn btn--primary" style="width: 100%;" @click="handleGoShopping">
-        去生成购物清单
+        {{ prepStore.shoppingListNeedsRefresh ? '去更新购物清单' : '去生成购物清单' }}
       </button>
     </div>
   </section>
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { showFailToast, showSuccessToast } from 'vant'
+import { showConfirmDialog, showFailToast, showSuccessToast } from 'vant'
 import { MEAL_ITEM_STATUS, usePrepStore } from '../../../app/store/usePrepStore'
 
 defineOptions({
@@ -101,19 +107,48 @@ const prepStore = usePrepStore()
 const router = useRouter()
 const activeDate = ref('')
 const replacingMealId = ref(null)
+const WEEK_DAYS = ['周一', '周二', '周三', '周四', '周五', '周六', '周日']
 
 const handleToggleReplace = (mealId) => {
   replacingMealId.value = replacingMealId.value === mealId ? null : mealId
 }
 
+const getWeekdayTextByDayIndex = (dayIndex) => {
+  return WEEK_DAYS[dayIndex] || ''
+}
+
+const getDayIndexByDate = (dateValue) => {
+  const date = new Date(dateValue)
+  const day = date.getDay()
+  return day === 0 ? 6 : day - 1
+}
+
+const normalizeSelectedDayIndexes = (selectedDayIndexes, fallbackDays) => {
+  if (Array.isArray(selectedDayIndexes) && selectedDayIndexes.length) {
+    return [...new Set(selectedDayIndexes.map((value) => Number(value)).filter((value) => Number.isInteger(value) && value >= 0 && value <= 6))]
+      .sort((left, right) => left - right)
+  }
+
+  const parsedFallbackDays = Number(fallbackDays)
+  const dayCount = Number.isInteger(parsedFallbackDays) && parsedFallbackDays >= 1 && parsedFallbackDays <= 7 ? parsedFallbackDays : 7
+  return Array.from({ length: dayCount }, (_, index) => index)
+}
+
 const dateTabs = computed(() => {
-  const dateSet = new Set(prepStore.mealItems.map((item) => item.date))
-  return Array.from(dateSet)
-    .sort((left, right) => left.localeCompare(right, 'zh-CN'))
-    .map((value) => ({
-      value,
-      label: value,
-    }))
+  const dateMap = new Map()
+  prepStore.mealItems.forEach((item) => {
+    if (dateMap.has(item.date)) {
+      return
+    }
+
+    const dayIndex = Number.isInteger(item.dayIndex) ? item.dayIndex : getDayIndexByDate(item.date)
+    dateMap.set(item.date, {
+      value: item.date,
+      label: getWeekdayTextByDayIndex(dayIndex) || item.date,
+    })
+  })
+
+  return Array.from(dateMap.values()).sort((left, right) => left.value.localeCompare(right.value, 'zh-CN'))
 })
 
 const visibleMealItems = computed(() => {
@@ -124,13 +159,23 @@ const visibleMealItems = computed(() => {
   return prepStore.mealItems.filter((item) => item.date === activeDate.value)
 })
 
-const formatIngredients = (ingredients = []) => {
-  if (!ingredients.length) {
-    return '暂无食材'
+const menuDayIndexes = computed(() => {
+  return [...new Set(prepStore.mealItems.map((item) => (Number.isInteger(item.dayIndex) ? item.dayIndex : getDayIndexByDate(item.date))))]
+    .filter((dayIndex) => Number.isInteger(dayIndex) && dayIndex >= 0 && dayIndex <= 6)
+    .sort((left, right) => left - right)
+})
+
+const planSelectedDayIndexes = computed(() =>
+  normalizeSelectedDayIndexes(prepStore.currentPlan?.selectedDayIndexes, prepStore.currentPlan?.days)
+)
+
+const isMenuOutdated = computed(() => {
+  if (!prepStore.hasActivePlan || !prepStore.mealItems.length) {
+    return false
   }
 
-  return ingredients.map((ingredient) => `${ingredient.name}${ingredient.quantity}${ingredient.unit}`).join('、')
-}
+  return menuDayIndexes.value.join('|') !== planSelectedDayIndexes.value.join('|')
+})
 
 const handleGoPlan = () => {
   router.push('/plan')
@@ -145,6 +190,24 @@ const handleSwitchDate = (dateValue) => {
 }
 
 const handleGenerateMenu = async () => {
+  if (!prepStore.hasActivePlan) {
+    showFailToast('请先创建本周计划')
+    return
+  }
+
+  if (prepStore.mealItems.length) {
+    try {
+      await showConfirmDialog({
+        title: '重新生成菜单',
+        message: '重新生成会覆盖当前菜单（包含替换、删除和完成状态），确定继续吗？',
+        confirmButtonText: '确认覆盖',
+        cancelButtonText: '取消',
+      })
+    } catch {
+      return
+    }
+  }
+
   await prepStore.generateMenu()
   if (prepStore.lastError) {
     showFailToast(prepStore.lastError)
@@ -184,6 +247,17 @@ const handleToggleMealStatus = async (mealItem) => {
 }
 
 const handleDeleteMeal = async (mealItemId) => {
+  try {
+    await showConfirmDialog({
+      title: '删除菜品',
+      message: '删除后将从本周菜单移除该餐次，确定继续吗？',
+      confirmButtonText: '确认删除',
+      cancelButtonText: '取消',
+    })
+  } catch {
+    return
+  }
+
   await prepStore.removeMealItem(mealItemId)
   if (prepStore.lastError) {
     showFailToast(prepStore.lastError)
@@ -193,11 +267,23 @@ const handleDeleteMeal = async (mealItemId) => {
   showSuccessToast('菜品已删除')
 }
 
+watch(
+  dateTabs,
+  (tabs) => {
+    if (!tabs.length) {
+      activeDate.value = ''
+      return
+    }
+
+    if (!tabs.some((tab) => tab.value === activeDate.value)) {
+      activeDate.value = tabs[0].value
+    }
+  },
+  { immediate: true }
+)
+
 onMounted(async () => {
   await prepStore.bootstrap()
-  if (dateTabs.value.length) {
-    activeDate.value = dateTabs.value[0].value
-  }
 })
 </script>
 

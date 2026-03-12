@@ -27,8 +27,11 @@
     </div>
 
     <div v-else class="content">
+      <p v-if="prepStore.shoppingListNeedsRefresh && prepStore.shoppingItems.length" class="hint">
+        菜单已变更，建议先重新生成购物清单再继续采购。
+      </p>
       <button class="btn btn--primary" style="width: 100%;" :loading="prepStore.isLoading" @click="handleGenerateShopping">
-        根据菜单生成购物清单
+        {{ prepStore.shoppingListNeedsRefresh ? '重新生成购物清单' : '根据菜单生成购物清单' }}
       </button>
 
       <van-empty v-if="!filteredCategoryList.length" description="当前筛选下无清单项。" />
@@ -82,6 +85,7 @@
       </section>
     </div>
 
+    <!-- eslint-disable vue/no-v-model-argument -->
     <van-dialog
       v-model:show="isAddDialogVisible"
       title="新增食材"
@@ -97,6 +101,7 @@
         <van-field v-model.trim="manualForm.category" label="分类" placeholder="蔬菜 / 肉禽 / 调料 / 其他" aria-label="分类" />
       </van-form>
     </van-dialog>
+    <!-- eslint-enable vue/no-v-model-argument -->
   </section>
 </template>
 

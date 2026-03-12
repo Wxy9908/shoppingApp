@@ -1,79 +1,138 @@
 <template>
   <section class="page" aria-label="周计划页面">
     <header class="card">
-      <div class="title">计划创建</div>
-      <p class="desc">10 分钟完成下周菜单基础配置</p>
-      <div class="row" style="margin-top: 12px;">
-        <span class="pill active">👥 {{ form.peopleCount }} 人</span>
-        <span class="pill">📅 {{ form.days }} 天</span>
+      <div class="between">
+        <div class="title">{{ pageTitle }}</div>
+        <span :class="planStatusTagClass">{{ planStatusTagText }}</span>
+      </div>
+      <p class="desc">{{ modeDescription }}</p>
+      <p class="summary-line">{{ planInsightText }}</p>
+      <div v-if="hasCurrentPlan" class="row plan-meta-row">
+        <span class="pill pill--active">👥 {{ form.peopleCount }} 人</span>
+        <span class="pill">📅 {{ selectedCookingDays.length }} 天</span>
         <span class="pill">💰 预算 {{ form.budget }}</span>
       </div>
-      <div v-if="form.preferences" class="row" style="margin-top: 12px;">
-        <span v-for="pref in form.preferences.split(/[，, ]+/)" :key="pref" class="pill active">{{ pref }}</span>
-      </div>
-      <div class="row" style="margin-top: 20px;">
-        <button class="btn btn--primary" style="flex: 1.5;" @click="handleSavePlan">生成菜单</button>
-        <button class="btn" style="flex: 1;" @click="handleGoMenu">查看菜单</button>
+      <div v-if="hasCurrentPlan && preferenceList.length" class="row plan-meta-row">
+        <span v-for="pref in preferenceList" :key="pref" class="pill pill--active">{{ pref }}</span>
       </div>
     </header>
 
     <article class="card">
-      <div class="title" style="margin-bottom: 16px;">基础配置</div>
-      <van-form class="form" @submit="handleSavePlan">
+      <div class="title plan-section-title">基础配置</div>
+      <van-form class="form">
+        <van-field
+          :model-value="internalWeekLabel"
+          label="周数（系统）"
+          readonly
+          aria-label="系统周数"
+          class="readonly-field"
+        />
+        <van-field
+          v-model.trim="form.planName"
+          label="计划名称"
+          placeholder="例如：工作日快手餐"
+          maxlength="20"
+          show-word-limit
+          aria-label="计划名称"
+          class="focus-highlight"
+        />
         <van-field
           v-model.number="form.peopleCount"
           type="digit"
-          label="人数"
+          label="人数（人）"
           placeholder="请输入就餐人数"
           :rules="[{ required: true, message: '请填写人数' }]"
           aria-label="就餐人数"
-        />
-        <van-field
-          v-model.number="form.days"
-          type="digit"
-          label="天数"
-          placeholder="请输入规划天数（1-7）"
-          :rules="[{ required: true, message: '请填写天数' }]"
-          aria-label="规划天数"
+          class="focus-highlight"
         />
         <van-field
           v-model.number="form.budget"
           type="digit"
-          label="预算"
+          label="预算（元）"
           placeholder="请输入本周预算（元）"
           :rules="[{ required: true, message: '请填写预算' }]"
           aria-label="每周预算"
+          class="focus-highlight"
         />
-        <van-field
-          v-model.trim="form.preferences"
-          label="口味偏好"
-          placeholder="如：清淡、少油、快手菜"
-          aria-label="口味偏好"
-        />
+        <div class="field-block focus-highlight" tabindex="0">
+          <div class="field-label">做饭日期（天）</div>
+          <div class="chip-row wrap">
+            <button
+              v-for="option in cookingDayOptions"
+              :key="option.value"
+              type="button"
+              class="filter-pill"
+              :class="{ 'filter-pill--active': selectedCookingDays.includes(option.value) }"
+              @click="handleToggleCookingDay(option.value)"
+            >
+              {{ option.label }}
+            </button>
+          </div>
+        </div>
+        
+        <div class="field-block focus-highlight" tabindex="0">
+          <div class="field-label">口味偏好</div>
+          <div class="chip-row wrap">
+            <button
+              v-for="option in PREFERENCE_OPTIONS"
+              :key="option"
+              type="button"
+              class="filter-pill"
+              :class="{ 'filter-pill--active': selectedPreferences.includes(option) }"
+              @click="handleTogglePreference(option)"
+            >
+              {{ option }}
+            </button>
+          </div>
+        </div>
 
         <div class="actions">
-          <van-button native-type="submit" type="primary" block :loading="prepStore.isLoading">保存计划</van-button>
-          <van-button
-            type="default"
-            block
-            aria-label="前往菜单页"
-            :disabled="!prepStore.hasActivePlan"
+          <button
+            class="btn btn--primary btn--lg"
+            type="button"
+            aria-label="保存计划"
+            :disabled="prepStore.isLoading"
+            @click="handleSavePlan"
+          >
+            {{ primaryActionText }}
+          </button>
+          <button
+            v-if="hasCurrentPlan"
+            class="btn"
+            type="button"
+            aria-label="前往菜单管理"
+            :disabled="prepStore.isLoading"
             @click="handleGoMenu"
           >
             前往菜单管理
-          </van-button>
-          <van-button
-            type="success"
-            block
-            aria-label="复制到下周"
-            :disabled="!prepStore.hasActivePlan"
-            :loading="prepStore.isLoading"
-            @click="handleCopyToNextWeek"
-          >
-            复制到下周（重置执行状态）
-          </van-button>
+          </button>
         </div>
       </van-form>
+    </article>
+
+    <article v-if="hasCurrentPlan" class="card" aria-label="计划操作">
+      <div class="title plan-section-title">计划操作</div>
+      <p class="desc">复制会生成下周新计划并重置执行状态，删除会清理当前周关联数据。</p>
+      <div class="actions">
+        <button
+          class="btn"
+          type="button"
+          aria-label="复制到下周"
+          :disabled="prepStore.isLoading"
+          @click="handleCopyToNextWeek"
+        >
+          复制到下周（重置执行状态）
+        </button>
+        <button
+          class="btn btn--danger"
+          type="button"
+          aria-label="删除当前周计划"
+          :disabled="prepStore.isLoading"
+          @click="handleDeletePlan"
+        >
+          删除当前周计划
+        </button>
+      </div>
     </article>
 
     <van-notice-bar
@@ -102,9 +161,9 @@
 </template>
 
 <script setup>
-import { reactive, ref, onMounted } from 'vue'
+import { reactive, ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { showSuccessToast, showFailToast } from 'vant'
+import { showSuccessToast, showFailToast, showConfirmDialog } from 'vant'
 import { usePrepStore } from '../../../app/store/usePrepStore'
 
 defineOptions({
@@ -115,35 +174,194 @@ const router = useRouter()
 const prepStore = usePrepStore()
 const importInputRef = ref(null)
 
-const form = reactive({
+const defaultForm = {
+  planName: '',
   peopleCount: 2,
-  days: 5,
   budget: 300,
-  preferences: '',
+}
+
+const form = reactive({
+  ...defaultForm,
 })
+const selectedCookingDays = ref([0, 1, 2, 3, 4])
+const selectedPreferences = ref([])
+const PREFERENCE_OPTIONS = ['清淡', '少油', '快手菜', '高蛋白', '低脂', '控糖', '省钱']
+
+const hasCurrentPlan = computed(() => prepStore.hasActivePlan)
+const pageTitle = computed(() => (hasCurrentPlan.value ? '计划编辑' : '计划创建'))
+const primaryActionText = computed(() => (hasCurrentPlan.value ? '保存修改' : '创建计划'))
+const internalWeekLabel = computed(() => prepStore.currentPlan?.weekLabel || `Week ${prepStore.planCount + 1}`)
+const cookingDayOptions = computed(() => {
+  const weekDays = ['周一', '周二', '周三', '周四', '周五', '周六', '周日']
+  return weekDays.map((label, dayIndex) => ({
+    value: dayIndex,
+    label,
+  }))
+})
+const preferenceList = computed(() => selectedPreferences.value)
+const canonicalPreferenceList = computed(() =>
+  PREFERENCE_OPTIONS.filter((option) => selectedPreferences.value.includes(option))
+)
+const canonicalSelectedCookingDays = computed(() => [...selectedCookingDays.value].sort((left, right) => left - right))
+const hasUnsavedChanges = computed(() => {
+  if (!hasCurrentPlan.value || !prepStore.currentPlan) {
+    return false
+  }
+
+  const savedPreferenceSet = new Set(parsePreferenceText(prepStore.currentPlan.preferences || ''))
+  const savedPreferenceList = PREFERENCE_OPTIONS.filter((option) => savedPreferenceSet.has(option))
+  const savedCookingDays = normalizeCookingDays(prepStore.currentPlan.selectedDayIndexes, prepStore.currentPlan.days)
+
+  const isPlanNameChanged = (form.planName || '').trim() !== (prepStore.currentPlan.planName || '').trim()
+  const isPeopleCountChanged = Number(form.peopleCount) !== Number(prepStore.currentPlan.peopleCount)
+  const isBudgetChanged = Number(form.budget) !== Number(prepStore.currentPlan.budget)
+  const isPreferenceChanged = canonicalPreferenceList.value.join('|') !== savedPreferenceList.join('|')
+  const isCookingDaysChanged = canonicalSelectedCookingDays.value.join('|') !== savedCookingDays.join('|')
+
+  return isPlanNameChanged || isPeopleCountChanged || isBudgetChanged || isPreferenceChanged || isCookingDaysChanged
+})
+const planStatusTagText = computed(() => {
+  if (!hasCurrentPlan.value) {
+    return '未创建'
+  }
+
+  return hasUnsavedChanges.value ? '待保存' : '已保存'
+})
+const planStatusTagClass = computed(() => {
+  if (!hasCurrentPlan.value) {
+    return 'week-tag'
+  }
+
+  return hasUnsavedChanges.value ? 'week-tag' : 'hero-tag'
+})
+const modeDescription = computed(() => {
+  if (!hasCurrentPlan.value) {
+    return '当前为创建模式，创建后可进入菜单管理与清单生成。'
+  }
+
+  return hasUnsavedChanges.value
+    ? '当前有未保存改动，保存后会更新本周计划。'
+    : '当前为编辑模式，计划内容已保存。'
+})
+const planInsightText = computed(() => {
+  const mealCount = selectedCookingDays.value.length * 2
+  const dailyBudget = selectedCookingDays.value.length > 0 ? (form.budget / selectedCookingDays.value.length).toFixed(1) : '0.0'
+  const perPersonBudget =
+    form.peopleCount > 0 && selectedCookingDays.value.length > 0
+      ? (form.budget / (form.peopleCount * selectedCookingDays.value.length)).toFixed(1)
+      : '0.0'
+  const planNameText = form.planName ? `「${form.planName}」` : '当前计划'
+  return `${planNameText}预计 ${mealCount} 餐，人均每日约 ${perPersonBudget} 元，日均预算约 ${dailyBudget} 元。`
+})
+
+const parsePreferenceText = (text) => {
+  return (text || '')
+    .split(/[、，, ]+/)
+    .map((item) => item.trim())
+    .filter(Boolean)
+}
+
+const resetForm = () => {
+  Object.assign(form, defaultForm)
+  selectedCookingDays.value = [0, 1, 2, 3, 4]
+  selectedPreferences.value = []
+}
 
 const syncFormByCurrentPlan = () => {
   if (!prepStore.currentPlan) {
+    resetForm()
     return
   }
 
+  form.planName = prepStore.currentPlan.planName || ''
   form.peopleCount = prepStore.currentPlan.peopleCount
-  form.days = prepStore.currentPlan.days
   form.budget = prepStore.currentPlan.budget
-  form.preferences = prepStore.currentPlan.preferences || ''
+  selectedCookingDays.value = normalizeCookingDays(
+    prepStore.currentPlan.selectedDayIndexes,
+    prepStore.currentPlan.days
+  )
+  const parsedPreferenceList = parsePreferenceText(prepStore.currentPlan.preferences || '')
+  selectedPreferences.value = parsedPreferenceList.filter((item) => PREFERENCE_OPTIONS.includes(item))
+}
+
+const normalizeCookingDays = (selectedDayIndexes, fallbackDays) => {
+  if (Array.isArray(selectedDayIndexes) && selectedDayIndexes.length) {
+    return [...new Set(selectedDayIndexes.map((value) => Number(value)).filter((value) => Number.isInteger(value) && value >= 0 && value <= 6))]
+      .sort((left, right) => left - right)
+  }
+
+  const parsedFallbackDays = Number(fallbackDays)
+  const defaultDayCount = Number.isInteger(parsedFallbackDays) && parsedFallbackDays >= 1 && parsedFallbackDays <= 7 ? parsedFallbackDays : 5
+  return Array.from({ length: defaultDayCount }, (_, index) => index)
+}
+
+const handleToggleCookingDay = (dayIndex) => {
+  if (selectedCookingDays.value.includes(dayIndex)) {
+    if (selectedCookingDays.value.length === 1) {
+      showFailToast('至少选择 1 天做饭日期')
+      return
+    }
+    selectedCookingDays.value = selectedCookingDays.value.filter((value) => value !== dayIndex)
+    return
+  }
+
+  selectedCookingDays.value = [...selectedCookingDays.value, dayIndex].sort((left, right) => left - right)
+}
+
+const handleTogglePreference = (option) => {
+  if (selectedPreferences.value.includes(option)) {
+    selectedPreferences.value = selectedPreferences.value.filter((item) => item !== option)
+    return
+  }
+
+  selectedPreferences.value = [...selectedPreferences.value, option]
+}
+
+const validatePlanForm = () => {
+  const peopleCount = Number(form.peopleCount)
+  const budget = Number(form.budget)
+
+  if (form.planName && form.planName.trim().length > 20) {
+    showFailToast('计划名称最多 20 个字')
+    return false
+  }
+
+  if (!Number.isInteger(peopleCount) || peopleCount < 1 || peopleCount > 20) {
+    showFailToast('就餐人数需为 1-20 的整数')
+    return false
+  }
+
+  if (!selectedCookingDays.value.length) {
+    showFailToast('请至少选择 1 天做饭日期')
+    return false
+  }
+
+  if (!Number.isFinite(budget) || budget <= 0 || budget > 20000) {
+    showFailToast('预算需大于 0 且不超过 20000 元')
+    return false
+  }
+
+  if (preferenceList.value.length > 7) {
+    showFailToast('口味偏好最多选择 7 项')
+    return false
+  }
+
+  return true
 }
 
 const handleSavePlan = async () => {
-  if (form.days < 1 || form.days > 7) {
-    showFailToast('规划天数需在 1-7 之间')
+  if (!validatePlanForm()) {
     return
   }
 
   await prepStore.savePlan({
-    peopleCount: form.peopleCount,
-    days: form.days,
-    budget: form.budget,
-    preferences: form.preferences,
+    weekLabel: internalWeekLabel.value,
+    planName: form.planName.trim(),
+    peopleCount: Number(form.peopleCount),
+    days: selectedCookingDays.value.length,
+    selectedDayIndexes: selectedCookingDays.value,
+    budget: Number(form.budget),
+    preferences: canonicalPreferenceList.value.join('、'),
   })
 
   if (prepStore.lastError) {
@@ -155,10 +373,20 @@ const handleSavePlan = async () => {
 }
 
 const handleGoMenu = () => {
+  if (!hasCurrentPlan.value) {
+    showFailToast('请先创建本周计划')
+    return
+  }
+
   router.push('/menu')
 }
 
 const handleCopyToNextWeek = async () => {
+  if (!hasCurrentPlan.value) {
+    showFailToast('请先创建本周计划')
+    return
+  }
+
   await prepStore.copyCurrentPlanToNextWeek()
   if (prepStore.lastError) {
     showFailToast(prepStore.lastError)
@@ -167,6 +395,32 @@ const handleCopyToNextWeek = async () => {
 
   syncFormByCurrentPlan()
   showSuccessToast('已复制到下周，执行状态已重置')
+}
+
+const handleDeletePlan = async () => {
+  if (!prepStore.hasActivePlan) {
+    return
+  }
+
+  try {
+    await showConfirmDialog({
+      title: '删除本周计划',
+      message: '删除后会同时清理本周菜单、清单和周复盘数据，且不可恢复，确定继续吗？',
+      confirmButtonText: '确认删除',
+      cancelButtonText: '取消',
+    })
+  } catch {
+    return
+  }
+
+  await prepStore.deleteCurrentPlan()
+  if (prepStore.lastError) {
+    showFailToast(prepStore.lastError)
+    return
+  }
+
+  resetForm()
+  showSuccessToast('本周计划已删除')
 }
 
 const handleExportData = async () => {
@@ -189,6 +443,17 @@ const handleImportFile = async (event) => {
   }
 
   try {
+    try {
+      await showConfirmDialog({
+        title: '确认导入并覆盖数据',
+        message: '导入将全量覆盖当前数据。系统会先自动创建快照，但本次覆盖后当前内容将被替换，是否继续？',
+        confirmButtonText: '确认导入',
+        cancelButtonText: '取消',
+      })
+    } catch {
+      return
+    }
+
     const rawText = await selectedFile.text()
     await prepStore.restoreAllDataFromJson(rawText)
     if (prepStore.lastError) {
@@ -210,11 +475,56 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+.between {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--prep-space-3);
+}
+
 .row {
   display: flex;
-  gap: 12px;
+  gap: var(--prep-space-3);
   align-items: center;
   flex-wrap: wrap;
+}
+
+.plan-meta-row {
+  margin-top: var(--prep-space-3);
+}
+
+.field-block {
+  padding: 10px 16px;
+  display: grid;
+  gap: var(--prep-space-2);
+  transition: all 0.2s ease;
+  outline: none;
+}
+
+.field-label {
+  font-size: 14px;
+  color: #646566;
+  line-height: 24px;
+  margin-bottom: 4px;
+}
+
+.chip-row.wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  overflow-x: visible;
+  padding: 4px 0;
+}
+
+.chip-row.wrap .filter-pill {
+  flex: 0 0 calc(25% - 6px); /* 4 per row */
+  justify-content: center;
+  padding: 0;
+  min-width: 0;
+}
+
+.plan-section-title {
+  margin-bottom: var(--prep-space-4);
 }
 
 .form {
@@ -223,8 +533,24 @@ onMounted(async () => {
 
 .actions {
   display: grid;
-  gap: 12px;
-  margin-top: 20px;
+  gap: var(--prep-space-3);
+  margin-top: var(--prep-space-5);
+}
+
+.pill--active {
+  background: var(--prep-primary-soft);
+  color: var(--prep-primary);
+  border-color: var(--prep-primary-border);
+}
+
+.btn--danger {
+  border-color: rgba(239, 68, 68, 0.2);
+  color: var(--prep-danger);
+  background: rgba(239, 68, 68, 0.06);
+}
+
+.btn--danger:active {
+  background: rgba(239, 68, 68, 0.12);
 }
 
 .backup-panel {
@@ -247,6 +573,26 @@ onMounted(async () => {
   margin: 12px 0 0;
   font-size: 13px;
   color: var(--prep-text-muted);
+}
+
+.focus-highlight :deep(.van-field__control) {
+  transition: all 0.2s ease;
+}
+
+.focus-highlight:focus-within {
+  background: var(--prep-primary-soft);
+  border-radius: var(--prep-radius-md);
+}
+
+.focus-highlight:focus-within :deep(.van-field__label),
+.focus-highlight:focus-within .field-label {
+  color: var(--prep-primary);
+  font-weight: 600;
+}
+
+.readonly-field :deep(.van-field__control) {
+  color: var(--prep-text-muted);
+  font-weight: 500;
 }
 
 .hidden-input {
